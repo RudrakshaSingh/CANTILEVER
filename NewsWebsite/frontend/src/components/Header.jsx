@@ -23,9 +23,9 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, logout } from "../utils/firebaseConfig"; 
+import { auth, logout } from "../utils/firebaseConfig";
 import toast from "react-hot-toast";
-  import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function Header() {
   const [userLoggedIn, setUserLoggedIn] = useState(null);
@@ -67,7 +67,7 @@ function Header() {
 
   const newsCategories = [
     {
-      name: "Breaking News",
+      name: "Trending News",
       icon: Zap,
       href: "/news/breaking",
       color: "text-red-500",
@@ -123,21 +123,19 @@ function Header() {
     },
   ];
 
+  const navigate = useNavigate();
 
-const navigate = useNavigate();
-
-const handleLogout = async () => {
-  const { error } = await logout();
-  if (!error) {
-    setIsProfileDropdownOpen(false);
-    navigate("/"); // redirect to home page
-    toast.success("Logged out successfully!");
-    setUserLoggedIn(null); // clear user state
-  } else {
-    toast.error("Logout failed. Please try again.");
-  }
-};
-
+  const handleLogout = async () => {
+    const { error } = await logout();
+    if (!error) {
+      setIsProfileDropdownOpen(false);
+      navigate("/"); // redirect to home page
+      toast.success("Logged out successfully!");
+      setUserLoggedIn(null); // clear user state
+    } else {
+      toast.error("Logout failed. Please try again.");
+    }
+  };
 
   const navigationItems = [
     { name: "Home", href: "/", icon: Home },
