@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Newspaper, 
-  User, 
-  ChevronDown, 
-  Menu, 
-  X, 
-  Home, 
-  Mail, 
-  Info, 
+import { useState, useEffect, useRef } from "react";
+import {
+  Newspaper,
+  User,
+  ChevronDown,
+  Menu,
+  X,
+  Home,
+  Mail,
+  Info,
   LogOut,
   BookOpen,
   UserPen,
@@ -19,33 +19,27 @@ import {
   Heart,
   Microscope,
   Globe,
-  Zap
-} from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
-
+  Zap,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth, logout } from "../utils/firebaseConfig"; 
+import toast from "react-hot-toast";
+  import { useNavigate } from "react-router-dom";
 
 function Header() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [userLoggedIn, setUserLoggedIn] = useState(null);
   const [isNewsDropdownOpen, setIsNewsDropdownOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  
+
   const newsDropdownRef = useRef(null);
   const profileDropdownRef = useRef(null);
 
   // Simulate auth state change - replace with your actual Firebase auth
   useEffect(() => {
-    // Mock authentication check
-    const mockAuth = {
-      onAuthStateChanged: (callback) => {
-        // Simulate logged out state initially
-        callback(null);
-        return () => {};
-      }
-    };
-    
-    const unsubscribe = mockAuth.onAuthStateChanged((user) => {
-      setCurrentUser(user);
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUserLoggedIn(user);
     });
     return () => unsubscribe();
   }, []);
@@ -53,56 +47,108 @@ function Header() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (newsDropdownRef.current && !newsDropdownRef.current.contains(event.target)) {
+      if (
+        newsDropdownRef.current &&
+        !newsDropdownRef.current.contains(event.target)
+      ) {
         setIsNewsDropdownOpen(false);
       }
-      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target)) {
+      if (
+        profileDropdownRef.current &&
+        !profileDropdownRef.current.contains(event.target)
+      ) {
         setIsProfileDropdownOpen(false);
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const newsCategories = [
-    { name: 'Breaking News', icon: Zap, href: '/news/breaking', color: 'text-red-500' },
-    { name: 'Sports', icon: Trophy, href: '/news/sports', color: 'text-green-500' },
-    { name: 'Entertainment', icon: Monitor, href: '/news/entertainment', color: 'text-pink-500' },
-    { name: 'Technology', icon: Monitor, href: '/news/technology', color: 'text-blue-500' },
-    { name: 'Politics', icon: Building, href: '/news/politics', color: 'text-purple-500' },
-    { name: 'Business', icon: Briefcase, href: '/news/business', color: 'text-yellow-500' },
-    { name: 'Health', icon: Heart, href: '/news/health', color: 'text-red-400' },
-    { name: 'Science', icon: Microscope, href: '/news/science', color: 'text-indigo-500' },
-    { name: 'World', icon: Globe, href: '/news/world', color: 'text-teal-500' },
-    { name: 'Gaming', icon: Gamepad2, href: '/news/gaming', color: 'text-orange-500' }
+    {
+      name: "Breaking News",
+      icon: Zap,
+      href: "/news/breaking",
+      color: "text-red-500",
+    },
+    {
+      name: "Sports",
+      icon: Trophy,
+      href: "/news/sports",
+      color: "text-green-500",
+    },
+    {
+      name: "Entertainment",
+      icon: Monitor,
+      href: "/news/entertainment",
+      color: "text-pink-500",
+    },
+    {
+      name: "Technology",
+      icon: Monitor,
+      href: "/news/technology",
+      color: "text-blue-500",
+    },
+    {
+      name: "Politics",
+      icon: Building,
+      href: "/news/politics",
+      color: "text-purple-500",
+    },
+    {
+      name: "Business",
+      icon: Briefcase,
+      href: "/news/business",
+      color: "text-yellow-500",
+    },
+    {
+      name: "Health",
+      icon: Heart,
+      href: "/news/health",
+      color: "text-red-400",
+    },
+    {
+      name: "Science",
+      icon: Microscope,
+      href: "/news/science",
+      color: "text-indigo-500",
+    },
+    { name: "World", icon: Globe, href: "/news/world", color: "text-teal-500" },
+    {
+      name: "Gaming",
+      icon: Gamepad2,
+      href: "/news/gaming",
+      color: "text-orange-500",
+    },
   ];
 
-  const handleLogin = () => {
-    // Mock login - replace with your actual login logic
-    setCurrentUser({ 
-      name: 'John Doe', 
-      email: 'john@example.com',
-      avatar: null 
-    });
-  };
 
-  const handleLogout = () => {
-    setCurrentUser(null);
+const navigate = useNavigate();
+
+const handleLogout = async () => {
+  const { error } = await logout();
+  if (!error) {
     setIsProfileDropdownOpen(false);
-  };
+    navigate("/"); // redirect to home page
+    toast.success("Logged out successfully!");
+    setUserLoggedIn(null); // clear user state
+  } else {
+    toast.error("Logout failed. Please try again.");
+  }
+};
+
 
   const navigationItems = [
-    { name: 'Home', href: '/', icon: Home },
-    { name: 'Contact', href: '/contact', icon: Mail },
-    { name: 'About', href: '/about', icon: Info }
+    { name: "Home", href: "/", icon: Home },
+    { name: "Contact", href: "/contact", icon: Mail },
+    { name: "About", href: "/about", icon: Info },
   ];
 
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          
           {/* Logo and Brand */}
           <div className="flex items-center space-x-3">
             <div className="flex-shrink-0">
@@ -129,7 +175,7 @@ function Header() {
                 <span>{item.name}</span>
               </Link>
             ))}
-            
+
             {/* News Dropdown */}
             <div className="relative" ref={newsDropdownRef}>
               <button
@@ -138,9 +184,13 @@ function Header() {
               >
                 <BookOpen className="w-5 h-5" />
                 <span>News</span>
-                <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isNewsDropdownOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown
+                  className={`w-5 h-5 transition-transform duration-200 ${
+                    isNewsDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
               </button>
-              
+
               {isNewsDropdownOpen && (
                 <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
                   <div className="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
@@ -154,7 +204,9 @@ function Header() {
                         className="flex items-center space-x-3 px-4 py-2 text-1xl font-bold text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors duration-150"
                         onClick={() => setIsNewsDropdownOpen(false)}
                       >
-                        <category.icon className={`w-6 h-6 ${category.color}`} />
+                        <category.icon
+                          className={`w-6 h-6 ${category.color}`}
+                        />
                         <span>{category.name}</span>
                       </Link>
                     ))}
@@ -166,31 +218,45 @@ function Header() {
 
           {/* Right Side - Profile/Auth */}
           <div className="flex items-center space-x-4">
-            {currentUser ? (
+            {userLoggedIn ? (
               /* Logged In User */
               <div className="relative" ref={profileDropdownRef}>
                 <button
-                  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                  onClick={() =>
+                    setIsProfileDropdownOpen(!isProfileDropdownOpen)
+                  }
                   className="flex items-center space-x-2 text-gray-700 hover:text-purple-600 transition-colors duration-200"
                 >
                   <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-full flex items-center justify-center">
-                    {currentUser.avatar ? (
-                      <img src={currentUser.avatar} alt="Profile" className="w-8 h-8 rounded-full" />
+                    {userLoggedIn.avatar ? (
+                      <img
+                        src={userLoggedIn.avatar}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full"
+                      />
                     ) : (
                       <User className="w-4 h-4 text-white" />
                     )}
                   </div>
                   <span className="hidden md:block text-sm font-medium">
-                    {currentUser.name}
+                    {userLoggedIn.name}
                   </span>
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isProfileDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    className={`w-4 h-4 transition-transform duration-200 ${
+                      isProfileDropdownOpen ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
-                
+
                 {isProfileDropdownOpen && (
                   <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
                     <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
-                      <p className="text-xs text-gray-500">{currentUser.email}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {userLoggedIn.name}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {userLoggedIn.email}
+                      </p>
                     </div>
                     <Link
                       to="/profile"
@@ -212,18 +278,19 @@ function Header() {
             ) : (
               /* Not Logged In */
               <div className="hidden md:flex items-center space-x-3">
-                <button
-                  onClick={handleLogin}
+                <Link
+                  to="/login"
                   className="text-purple-600 hover:text-purple-700 px-3 py-2 text-sm font-medium transition-colors duration-200"
                 >
                   Login
-                </button>
-                <button
-                  onClick={() => alert('Register functionality')}
+                </Link>
+
+                <Link
+                  to="/register"
                   className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg"
                 >
                   Register
-                </button>
+                </Link>
               </div>
             )}
 
@@ -232,7 +299,11 @@ function Header() {
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden p-2 rounded-lg text-gray-700 hover:text-purple-600 hover:bg-purple-50 transition-colors duration-200"
             >
-              {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMobileMenuOpen ? (
+                <X className="w-6 h-6" />
+              ) : (
+                <Menu className="w-6 h-6" />
+              )}
             </button>
           </div>
         </div>
@@ -252,10 +323,12 @@ function Header() {
                   <span>{item.name}</span>
                 </Link>
               ))}
-              
+
               {/* Mobile News Categories */}
               <div className="px-3 py-2">
-                <div className="text-sm font-semibold text-gray-500 mb-2">News Categories</div>
+                <div className="text-sm font-semibold text-gray-500 mb-2">
+                  News Categories
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   {newsCategories.map((category) => (
                     <Link
@@ -270,23 +343,24 @@ function Header() {
                   ))}
                 </div>
               </div>
-              
+
               {/* Mobile Auth */}
-              {!currentUser && (
+              {!userLoggedIn && (
                 <div className="px-3 py-2 border-t border-gray-200 mt-4 pt-4">
                   <div className="space-y-2">
-                    <button
-                      onClick={handleLogin}
-                      className="w-full text-left px-3 py-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors duration-200"
+                    <Link
+                      to="/login"
+                      className="block w-full text-left px-3 py-2 text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors duration-200"
                     >
                       Login
-                    </button>
-                    <button
-                      onClick={() => alert('Register functionality')}
-                      className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all duration-200"
+                    </Link>
+
+                    <Link
+                      to="/register"
+                      className="block w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 transition-all duration-200"
                     >
                       Register
-                    </button>
+                    </Link>
                   </div>
                 </div>
               )}

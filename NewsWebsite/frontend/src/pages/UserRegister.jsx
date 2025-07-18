@@ -102,8 +102,7 @@ function UserRegister() {
       }
 
       // Handle success
-      console.log("User registered successfully:", user);
-      toast.success("Registration completed successfully! Welcome to NewsHub!", { 
+      toast.success(`Registration completed successfully! Welcome ${user.displayName || "User"} to NewsHub!`, {
         id: loadingToast,
         duration: 4000 
       });
@@ -118,8 +117,7 @@ function UserRegister() {
       setValidationErrors({});
       
       // Navigate to dashboard or home
-    } catch (error) {
-      console.error("Registration failed:", error);
+    } catch  {
       toast.error("An unexpected error occurred. Please try again.", { 
         id: loadingToast 
       });
@@ -151,17 +149,15 @@ function UserRegister() {
       }
 
       // Handle success
-      console.log("Google authentication successful:", user);
-      toast.success("Google authentication successful! Welcome to NewsHub!", { 
+      toast.success(`Google authentication successful! Welcome ${user.displayName || "User"} to NewsHub!`, {
         id: loadingToast,
         duration: 4000 
       });
       
       // Navigate to dashboard or home
-    } catch (error) {
-      console.error("Google authentication failed:", error);
-      toast.error("An unexpected error occurred. Please try again.", { 
-        id: loadingToast 
+    } catch {
+      toast.error("An unexpected error occurred. Please try again.", {
+        id: loadingToast
       });
     } finally {
       setGoogleAuthLoading(false);
