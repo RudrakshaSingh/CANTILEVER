@@ -1,9 +1,6 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
 import {
-  Menu,
-  Search,
-  Bell,
-  User,
   Clock,
   Share2,
   TrendingUp,
@@ -13,19 +10,12 @@ import {
   Heart,
   Gamepad2,
   ChevronRight,
-  Play,
   Star,
   ArrowRight,
-  Calendar,
-  Filter,
-  BookOpen,
-  Users,
-  Award,
   Monitor,
   Building,
   Microscope,
   Trophy,
-  Loader,
   RefreshCw, 
 } from "lucide-react";
 import Header from "../components/Header";
@@ -47,32 +37,28 @@ function Home() {
   });
 
   const [loading, setLoading] = useState(true);
+  const [errorCount, setErrorCount] = useState(0);
 
   const NEWS_API_BASE_URL =
     import.meta.env.VITE_NEWS_API_BASE_URL || "https://newsapi.org/v2";
   const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 
   const fetchGivenNews = async (endpoint, category) => {
-    try {
-      const response = await axios.get(
-        `${NEWS_API_BASE_URL}/${endpoint}?apiKey=${NEWS_API_KEY}${category}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.status !== 200) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    const response = await axios.get(
+      `${NEWS_API_BASE_URL}/${endpoint}?apiKey=${NEWS_API_KEY}${category}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
       }
+    );
 
-      const data = response.data;
-      return data.articles || [];
-    } catch {
-      toast.error(`Failed to fetch ${endpoint} news. Please try again later.`);
-      return [];
+    if (response.status !== 200) {
+      throw new Error(`HTTP error! status: ${response.status}`);
     }
+
+    const data = response.data;
+    return data.articles || [];
   };
 
   const processArticles = (articles, categoryName = "") => {
@@ -102,72 +88,100 @@ function Home() {
               (article.content || article.description || "").length / 200
             )
           )} min read`,
-          isBreaking: index === 0 && Math.random() > 0.8,
+          isBreaking: index === 0 || index === 1,
           source: article.source || { name: "News Source" },
           url: article.url || "#",
           content: article.content || null,
         };
       })
-      .slice(0, 5); // Limit to 5 articles per category
+      .slice(0, 5);
   };
 
   const fetchNews = async () => {
     try {
       setLoading(true);
+      setErrorCount(0);
 
       // Fetch different categories of news
       const newsPromises = [
-        fetchGivenNews("top-headlines", "&country=us&pageSize=3"),
+        fetchGivenNews("top-headlines", "&country=us&pageSize=10"),
         fetchGivenNews(
           "everything",
-          "&q=sports&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=sports&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=business&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=business&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=entertainment&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=entertainment&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=technology&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=technology&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=health&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=health&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=science&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=science&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=world&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=world&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=politics&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=politics&sortBy=publishedAt&pageSize=10&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=gaming&sortBy=publishedAt&pageSize=3&language=en"
+          "&q=gaming&sortBy=publishedAt&pageSize=10&language=en"
         ),
       ];
 
+      // Use Promise.allSettled to handle partial failures gracefully
+      const results = await Promise.allSettled(newsPromises);
+      
+      let failedCount = 0;
       const [
-        topHeadlines,
-        sports,
-        business,
-        entertainment,
-        technology,
-        health,
-        science,
-        world,
-        politics,
-        gaming,
-      ] = await Promise.all(newsPromises);
+        topHeadlinesResult,
+        sportsResult,
+        businessResult,
+        entertainmentResult,
+        technologyResult,
+        healthResult,
+        scienceResult,
+        worldResult,
+        politicsResult,
+        gamingResult,
+      ] = results;
+
+      // Extract successful results and count failures
+      const extractResult = (result) => {
+        if (result.status === 'fulfilled') {
+          return result.value;
+        } else {
+          failedCount++;
+          return [];
+        }
+      };
+
+      const topHeadlines = extractResult(topHeadlinesResult);
+      const sports = extractResult(sportsResult);
+      const business = extractResult(businessResult);
+      const entertainment = extractResult(entertainmentResult);
+      const technology = extractResult(technologyResult);
+      const health = extractResult(healthResult);
+      const science = extractResult(scienceResult);
+      const world = extractResult(worldResult);
+      const politics = extractResult(politicsResult);
+      const gaming = extractResult(gamingResult);
+
+      setErrorCount(failedCount);
 
       console.log("Fetched news data:", {
         topHeadlines,
@@ -196,13 +210,21 @@ function Home() {
         gaming: processArticles(gaming || [], "Gaming"),
       });
 
-      // Only show success toast after everything is loaded
-      toast.success("Latest news loaded successfully!");
+      // Show appropriate toast based on results
+      if (failedCount === 0) {
+        toast.success("Latest news loaded successfully!");
+      } else if (failedCount === results.length) {
+        toast.error("Unable to load news. Please check your connection and try again.");
+      } else {
+        toast.success(`News loaded! (${results.length - failedCount}/${results.length} categories successful)`);
+      }
+
     } catch (error) {
       console.error("Error fetching news:", error);
       toast.error("Failed to load news. Please try again later.");
+      setErrorCount(10); // Set high error count to indicate complete failure
     } finally {
-      setLoading(false); // Always set loading to false, whether success or error
+      setLoading(false);
     }
   };
 
@@ -254,10 +276,57 @@ function Home() {
     Gaming: Gamepad2
   };
 
+  // Show error state if all requests failed
+  if (errorCount >= 10) {
+    return (
+      <div>
+        <Header />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center max-w-md">
+            <div className="bg-red-100 rounded-full p-4 mx-auto mb-4 w-fit">
+              <svg className="h-12 w-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load News</h2>
+            <p className="text-gray-600 mb-6">
+              We're having trouble connecting to our news service. Please check your internet connection and try again.
+            </p>
+            <button 
+              onClick={fetchNews}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Try Again</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <Header />
       <div className="min-h-screen bg-gray-50">
+        {/* Show partial error banner if some requests failed */}
+        {errorCount > 0 && errorCount < 10 && (
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  Some news categories couldn't be loaded. Showing available content.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Breaking News Banner */}
         {breakingNews && (
           <div className="bg-red-600 text-white py-2 px-4 shadow-lg">
@@ -410,7 +479,7 @@ function Home() {
                     </div>
                   </div>
                   <div className="p-4 space-y-4">
-                    {articles.slice(0, 3).map((article, index) => (
+                    {articles.slice(0, 3).map((article) => (
                       <div
                         key={article.id}
                         className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer"
