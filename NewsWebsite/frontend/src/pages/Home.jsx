@@ -1,9 +1,7 @@
-/* eslint-disable react-hooks/exhaustive-deps */
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect , useCallback } from "react";
 import {
   Clock,
-  Share2,
-  TrendingUp,
   Globe,
   Zap,
   Briefcase,
@@ -11,7 +9,6 @@ import {
   Gamepad2,
   ChevronRight,
   Star,
-  ArrowRight,
   Monitor,
   Building,
   Microscope,
@@ -43,7 +40,7 @@ function Home() {
     import.meta.env.VITE_NEWS_API_BASE_URL || "https://newsapi.org/v2";
   const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
 
-  const fetchGivenNews = async (endpoint, category) => {
+  const fetchGivenNews = useCallback(async (endpoint, category) => {
     const response = await axios.get(
       `${NEWS_API_BASE_URL}/${endpoint}?apiKey=${NEWS_API_KEY}${category}`,
       {
@@ -59,9 +56,9 @@ function Home() {
 
     const data = response.data;
     return data.articles || [];
-  };
+  }, [NEWS_API_BASE_URL, NEWS_API_KEY]);
 
-  const processArticles = (articles, categoryName = "") => {
+  const processArticles = useCallback((articles, categoryName = "") => {
     return articles
       .filter(article => 
         article &&
@@ -95,9 +92,10 @@ function Home() {
         };
       })
       .slice(0, 5);
-  };
+  }, []);
 
-  const fetchNews = async () => {
+
+  const fetchNews = useCallback(async () => {
     try {
       setLoading(true);
       setErrorCount(0);
@@ -107,39 +105,39 @@ function Home() {
         fetchGivenNews("top-headlines", "&country=us&pageSize=10"),
         fetchGivenNews(
           "everything",
-          "&q=sports&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=sports&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=business&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=business&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=entertainment&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=entertainment&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=technology&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=technology&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=health&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=health&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=science&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=science&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=world&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=world&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=politics&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=politics&sortBy=publishedAt&pageSize=5&language=en"
         ),
         fetchGivenNews(
           "everything",
-          "&q=gaming&sortBy=publishedAt&pageSize=10&language=en"
+          "&q=gaming&sortBy=publishedAt&pageSize=5&language=en"
         ),
       ];
 
@@ -226,12 +224,11 @@ function Home() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchGivenNews, processArticles]);
 
   useEffect(() => {
     fetchNews();
-    console.log("Fetching news from NewsAPI...", newsCategories);
-  }, []);
+  }, [fetchNews]);
 
   const formatTimeAgo = (dateString) => {
     const now = new Date();
@@ -260,8 +257,8 @@ function Home() {
     );
   }
 
-  const breakingNews = newsCategories.topHeadlines.find(article => article.isBreaking);
-  const otherTopNews = newsCategories.topHeadlines.filter(article => !article.isBreaking);
+  const breakingNews = newsCategories.topHeadlines[0]; // First article as breaking news
+  const otherTopNews = newsCategories.topHeadlines.slice(1); // All other articles starting from 2nd
 
   const categoryIcons = {
     Breaking: Zap,
@@ -327,29 +324,6 @@ function Home() {
           </div>
         )}
 
-        {/* Breaking News Banner */}
-        {breakingNews && (
-          <div className="bg-red-600 text-white py-2 px-4 shadow-lg">
-            <div className="max-w-7xl mx-auto flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Zap className="h-5 w-5 text-yellow-300" />
-                <span className="font-bold text-sm uppercase tracking-wide">
-                  Breaking News
-                </span>
-              </div>
-              <div className="h-4 w-px bg-white/30"></div>
-              <div className="flex-1">
-                <span className="text-sm font-medium">
-                  {breakingNews.title}
-                </span>
-              </div>
-              <div className="text-xs opacity-75">
-                {formatTimeAgo(breakingNews.publishedAt)}
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className="max-w-7xl mx-auto px-4 py-8">
           {/* Hero Section with Breaking News */}
           {breakingNews && (
@@ -386,20 +360,18 @@ function Home() {
                       <button className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
                         Read Full Story
                       </button>
-                      <button className="border border-gray-300 px-6 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors flex items-center space-x-2">
-                        <Share2 className="h-4 w-4" />
-                        <span>Share</span>
-                      </button>
                     </div>
                   </div>
-                  <div className="relative">
-                    <img
-                      src={breakingNews.image}
-                      alt={breakingNews.title}
-                      className="w-full h-96 object-cover rounded-xl shadow-2xl"
-                    />
+                  <div className="relative group cursor-pointer">
+                    <div className="overflow-hidden rounded-xl shadow-2xl">
+                      <img
+                        src={breakingNews.image}
+                        alt={breakingNews.title}
+                        className="w-full h-96 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
+                      />
+                    </div>
                     <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      LIVE
+                      BREAKING
                     </div>
                   </div>
                 </div>
@@ -407,53 +379,89 @@ function Home() {
             </div>
           )}
 
-          {/* Top Headlines Section */}
+          {/* Top Headlines Section with Scrollable Cards and Numbered List */}
           <div className="mb-12">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">
                 Top Headlines
               </h2>
-              <button className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 font-semibold">
-                <span>View All</span>
-                <ArrowRight className="h-4 w-4" />
-              </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {otherTopNews.map((article) => (
-                <div
-                  key={article.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                >
-                  <div className="relative">
-                    <img
-                      src={article.image}
-                      alt={article.title}
-                      className="w-full h-48 object-cover"
-                    />
-                    <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">
-                      {article.category}
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2">
-                      {article.title}
-                    </h3>
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                      {article.summary}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-gray-500">
-                      <div className="flex items-center space-x-2">
-                        <span>{article.author}</span>
-                        <span>•</span>
-                        <span>{formatTimeAgo(article.publishedAt)}</span>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Scrollable Cards Section - 2/3 width */}
+              <div className="lg:col-span-2">
+                <div className="flex overflow-x-auto space-x-6 pb-4 scrollbar-none">
+                  {otherTopNews.map((article) => (
+                    <div
+                      key={article.id}
+                      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 w-80 group cursor-pointer"
+                    >
+                      <div className="relative overflow-hidden">
+                        <img
+                          src={article.image}
+                          alt={article.title}
+                          className="w-full h-48 object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                        />
+                        <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                          Top Headlines
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <span>{article.readTime}</span>
+                      <div className="p-4">
+                          <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                            {article.title}
+                          </h3>
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                          {article.summary}
+                        </p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-2">
+                            <span>{article.author}</span>
+                            <span>•</span>
+                            <span>{formatTimeAgo(article.publishedAt)}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>{article.readTime}</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Numbered Headlines List - 1/3 width */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-lg shadow-md p-6 h-fit">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
+                    <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                      #
+                    </span>
+                    <span>Top Stories</span>
+                  </h3>
+                  <div className="space-y-4">
+                    {newsCategories.topHeadlines.slice(0, 5).map((article, index) => (
+                      <div
+                        key={article.id}
+                        className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                      >
+                        <div className="text-lg font-bold text-blue-600 w-6 flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug">
+                            {article.title}
+                          </h4>
+                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
+                            <span>{formatTimeAgo(article.publishedAt)}</span>
+                            <span>•</span>
+                            <span>{article.readTime}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
 
@@ -482,15 +490,17 @@ function Home() {
                     {articles.slice(0, 3).map((article) => (
                       <div
                         key={article.id}
-                        className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer"
+                        className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer group"
                       >
-                        <img
-                          src={article.image}
-                          alt={article.title}
-                          className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                        />
+                        <div className="overflow-hidden rounded-lg flex-shrink-0">
+                          <img
+                            src={article.image}
+                            alt={article.title}
+                            className="w-16 h-16 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
+                          />
+                        </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2">
+                          <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
                             {article.title}
                           </h4>
                           <div className="flex items-center space-x-2 text-xs text-gray-500">
@@ -513,38 +523,7 @@ function Home() {
             })}
           </div>
 
-          {/* Trending Section */}
-          <div className="mt-12 bg-white rounded-lg shadow-md p-6">
-            <div className="flex items-center space-x-2 mb-6">
-              <TrendingUp className="h-6 w-6 text-red-600" />
-              <h2 className="text-2xl font-bold text-gray-900">Trending Now</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Object.values(newsCategories)
-                .flat()
-                .slice(0, 6)
-                .map((article, index) => (
-                  <div
-                    key={article.id}
-                    className="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
-                  >
-                    <div className="text-2xl font-bold text-gray-300 w-8">
-                      {index + 1}
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900 line-clamp-1">
-                        {article.title}
-                      </h4>
-                      <div className="flex items-center space-x-2 text-sm text-gray-500 mt-1">
-                        <span>{article.category}</span>
-                        <span>•</span>
-                        <span>{formatTimeAgo(article.publishedAt)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
+          
         </div>
       </div>
     </div>
