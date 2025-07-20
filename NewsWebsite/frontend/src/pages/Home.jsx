@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect , useCallback } from "react";
+import React, { useState, useEffect , useCallback, useRef } from "react";
 import {
   Clock,
   Globe,
@@ -16,6 +15,7 @@ import {
   RefreshCw, 
 } from "lucide-react";
 import Header from "../components/Header";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 
@@ -35,6 +35,12 @@ function Home() {
 
   const [loading, setLoading] = useState(true);
   const [errorCount, setErrorCount] = useState(0);
+  
+  // Drag scrolling state
+  const scrollContainerRef = useRef(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
 
   const NEWS_API_BASE_URL =
     import.meta.env.VITE_NEWS_API_BASE_URL || "https://newsapi.org/v2";
@@ -94,6 +100,55 @@ function Home() {
       .slice(0, 5);
   }, []);
 
+  // Drag scrolling handlers
+  const handleMouseDown = useCallback((e) => {
+    if (!scrollContainerRef.current) return;
+    
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+    
+    // Prevent text selection during drag
+    e.preventDefault();
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 2; // Scroll speed multiplier
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  }, [isDragging, startX, scrollLeft]);
+
+  // Touch events for mobile drag scrolling
+  const handleTouchStart = useCallback((e) => {
+    if (!scrollContainerRef.current) return;
+    
+    setIsDragging(true);
+    setStartX(e.touches[0].pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  }, []);
+
+  const handleTouchMove = useCallback((e) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    
+    const x = e.touches[0].pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 2;
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  }, [isDragging, startX, scrollLeft]);
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false);
+  }, []);
 
   const fetchNews = useCallback(async () => {
     try {
@@ -240,6 +295,23 @@ function Home() {
     return `${Math.floor(diffInHours / 24)}d ago`;
   };
 
+  // Function to get route path for category
+  const getCategoryRoute = (categoryKey) => {
+    const routeMap = {
+      topHeadlines: "/news/TopHeadlines",
+      sports: "/news/sports",
+      business: "/news/business",
+      entertainment: "/news/entertainment",
+      technology: "/news/technology",
+      health: "/news/health",
+      science: "/news/science",
+      world: "/news/world",
+      politics: "/news/politics",
+      gaming: "/news/gaming",
+    };
+    return routeMap[categoryKey] || "/news";
+  };
+
   if (loading) {
     return (
       <div>
@@ -357,22 +429,34 @@ function Home() {
                       </div>
                     </div>
                     <div className="flex space-x-4">
-                      <button className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
+                      <a
+                        href={breakingNews.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
+                      >
                         Read Full Story
-                      </button>
+                      </a>
                     </div>
                   </div>
                   <div className="relative group cursor-pointer">
-                    <div className="overflow-hidden rounded-xl shadow-2xl">
-                      <img
-                        src={breakingNews.image}
-                        alt={breakingNews.title}
-                        className="w-full h-96 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
-                      />
-                    </div>
-                    <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-                      BREAKING
-                    </div>
+                    <a
+                      href={breakingNews.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block"
+                    >
+                      <div className="overflow-hidden rounded-xl shadow-2xl">
+                        <img
+                          src={breakingNews.image}
+                          alt={breakingNews.title}
+                          className="w-full h-96 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
+                        />
+                      </div>
+                      <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                        BREAKING
+                      </div>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -385,31 +469,55 @@ function Home() {
               <h2 className="text-2xl font-bold text-gray-900">
                 Top Headlines
               </h2>
+              <div className="text-sm text-gray-500 hidden sm:block">
+                Drag to scroll horizontally
+              </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Scrollable Cards Section - 2/3 width */}
               <div className="lg:col-span-2">
-                <div className="flex overflow-x-auto space-x-6 pb-4 scrollbar-none">
+                <div 
+                  ref={scrollContainerRef}
+                  className={`flex overflow-x-auto space-x-6 pb-4 scrollbar-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+                  style={{ userSelect: isDragging ? 'none' : 'auto' }}
+                  onMouseDown={handleMouseDown}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseUp={handleMouseUp}
+                  onMouseMove={handleMouseMove}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
                   {otherTopNews.map((article) => (
                     <div
                       key={article.id}
                       className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 w-80 group cursor-pointer"
+                      onClick={(e) => {
+                        // Prevent click during drag
+                        if (isDragging) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        } else {
+                          window.open(article.url, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
                     >
                       <div className="relative overflow-hidden">
                         <img
                           src={article.image}
                           alt={article.title}
                           className="w-full h-48 object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                          draggable={false}
                         />
                         <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">
                           Top Headlines
                         </div>
                       </div>
                       <div className="p-4">
-                          <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
-                            {article.title}
-                          </h3>
+                        <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                          {article.title}
+                        </h3>
                         <p className="text-gray-600 text-sm mb-3 line-clamp-2">
                           {article.summary}
                         </p>
@@ -426,6 +534,30 @@ function Home() {
                       </div>
                     </div>
                   ))}
+                  
+                  {/* View More Button at the end */}
+                  <div className="flex-shrink-0 w-80 flex items-center justify-center">
+                    <Link
+                      to="/news/TopHeadlines"
+                      className="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-lg p-8 text-center hover:from-blue-700 hover:to-purple-700 transition-all duration-300 cursor-pointer group w-full block"
+                    >
+                      <div className="space-y-4">
+                        <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
+                          <Zap className="h-8 w-8 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold mb-2">View More Headlines</h3>
+                          <p className="text-blue-100 text-sm">
+                            Discover more top stories and breaking news
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-center space-x-2 text-sm font-semibold">
+                          <span>Explore All</span>
+                          <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
                 </div>
               </div>
 
@@ -443,6 +575,7 @@ function Home() {
                       <div
                         key={article.id}
                         className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                        onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
                       >
                         <div className="text-lg font-bold text-blue-600 w-6 flex-shrink-0">
                           {index + 1}
@@ -466,62 +599,87 @@ function Home() {
           </div>
 
           {/* Categories Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {Object.entries(newsCategories).map(([categoryKey, articles]) => {
-              if (categoryKey === "topHeadlines" || articles.length === 0)
-                return null;
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+  {Object.entries(newsCategories).map(([categoryKey, articles]) => {
+    if (categoryKey === "topHeadlines" || articles.length === 0)
+      return null;
 
-              const categoryName =
-                categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
-              const IconComponent = categoryIcons[categoryName] || Globe;
+    const categoryName =
+      categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
+    const IconComponent = categoryIcons[categoryName] || Globe;
 
-              return (
-                <div
-                  key={categoryKey}
-                  className="bg-white rounded-lg shadow-md overflow-hidden"
-                >
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
-                    <div className="flex items-center space-x-2">
-                      <IconComponent className="h-5 w-5" />
-                      <h3 className="font-bold text-lg">{categoryName}</h3>
-                    </div>
-                  </div>
-                  <div className="p-4 space-y-4">
-                    {articles.slice(0, 3).map((article) => (
-                      <div
-                        key={article.id}
-                        className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer group"
-                      >
-                        <div className="overflow-hidden rounded-lg flex-shrink-0">
-                          <img
-                            src={article.image}
-                            alt={article.title}
-                            className="w-16 h-16 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
-                            {article.title}
-                          </h4>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500">
-                            <span>{formatTimeAgo(article.publishedAt)}</span>
-                            <span>•</span>
-                            <span>{article.readTime}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="border-t p-4">
-                    <button className="w-full text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center justify-center space-x-2">
-                      <span>View More {categoryName}</span>
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
+    // Show up to 3 articles, but ensure we have at least content for proper spacing
+    const displayArticles = articles.slice(0, 3);
+    const hasViewMore = articles.length > 3 || articles.length > 0; // Show view more if there are any articles
+
+    return (
+      <div
+        key={categoryKey}
+        className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col"
+      >
+        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
+          <div className="flex items-center space-x-2">
+            <IconComponent className="h-5 w-5" />
+            <h3 className="font-bold text-lg">{categoryName}</h3>
+          </div>
+        </div>
+        
+        {/* Articles container with flex-grow to fill available space */}
+        <div className="flex-grow">
+          <div className="p-4 space-y-4">
+            {displayArticles.map((article) => (
+              <div
+                key={article.id}
+                className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer group"
+                onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
+              >
+                <div className="overflow-hidden rounded-lg flex-shrink-0">
+                  <img
+                    src={article.image}
+                    alt={article.title}
+                    className="w-16 h-16 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                    {article.title}
+                  </h4>
+                  <div className="flex items-center space-x-2 text-xs text-gray-500">
+                    <span>{formatTimeAgo(article.publishedAt)}</span>
+                    <span>•</span>
+                    <span>{article.readTime}</span>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
+            
+            {/* Add placeholder items if we have less than 3 articles to maintain consistent height */}
+            {displayArticles.length < 3 && Array.from({ length: 3 - displayArticles.length }).map((_, index) => (
+              <div key={`placeholder-${index}`} className="h-20 flex items-center justify-center text-gray-400 text-sm">
+                <div className="text-center">
+                  <div className="text-xs opacity-50">More stories loading...</div>
+                </div>
+              </div>
+            ))}
           </div>
+        </div>
+
+        {/* View More button always at the bottom */}
+        {hasViewMore && (
+          <div className="border-t p-4 mt-auto">
+            <Link
+              to={getCategoryRoute(categoryKey)}
+              className="w-full text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center justify-center space-x-2 transition-colors duration-200"
+            >
+              <span>View More {categoryName}</span>
+              <ChevronRight className="h-4 w-4" />
+            </Link>
+          </div>
+        )}
+      </div>
+    );
+  })}
+</div>
 
           
         </div>

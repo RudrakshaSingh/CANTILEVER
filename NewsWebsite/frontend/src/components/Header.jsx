@@ -21,7 +21,7 @@ import {
   Globe,
   Zap,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, logout } from "../utils/firebaseConfig";
 import toast from "react-hot-toast";
@@ -35,6 +35,7 @@ function Header() {
 
   const newsDropdownRef = useRef(null);
   const profileDropdownRef = useRef(null);
+  const location = useLocation();
 
   // Simulate auth state change - replace with your actual Firebase auth
   useEffect(() => {
@@ -69,7 +70,7 @@ function Header() {
     {
       name: "Trending News",
       icon: Zap,
-      href: "/news/breaking",
+      href: "/news/TopHeadlines",
       color: "text-red-500",
     },
     {
@@ -143,6 +144,36 @@ function Header() {
     { name: "About", href: "/about", icon: Info },
   ];
 
+  // Helper function to check if a navigation item is active
+  const isActive = (href) => {
+    if (href === "/") {
+      return location.pathname === "/";
+    }
+    return location.pathname.startsWith(href);
+  };
+
+  // Helper function to get active navigation item classes
+  const getNavItemClasses = (href) => {
+    const baseClasses = "flex items-center space-x-1 px-4 py-2 text-1xl font-semibold transition-all duration-200";
+    
+    if (isActive(href)) {
+      return `${baseClasses} text-purple-600 shadow-lg shadow-purple-300/50 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg`;
+    }
+    
+    return `${baseClasses} text-gray-700 hover:text-purple-600`;
+  };
+
+  // Helper function to get mobile nav item classes
+  const getMobileNavItemClasses = (href) => {
+    const baseClasses = "flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200";
+    
+    if (isActive(href)) {
+      return `${baseClasses} text-purple-600 bg-gradient-to-r from-purple-100 to-indigo-100 shadow-md shadow-purple-200/50 border-l-4 border-purple-600`;
+    }
+    
+    return `${baseClasses} text-gray-700 hover:text-purple-600 hover:bg-purple-50`;
+  };
+
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -167,7 +198,7 @@ function Header() {
               <Link
                 key={item.name}
                 to={item.href}
-                className="flex items-center space-x-1 text-gray-700 hover:text-purple-600 px-4 py-2 text-1xl font-semibold transition-colors duration-200"
+                className={getNavItemClasses(item.href)}
               >
                 <item.icon className="w-5 h-5" />
                 <span>{item.name}</span>
@@ -314,7 +345,7 @@ function Header() {
                 <Link
                   key={item.name}
                   to={item.href}
-                  className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors duration-200"
+                  className={getMobileNavItemClasses(item.href)}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <item.icon className="w-4 h-4" />
