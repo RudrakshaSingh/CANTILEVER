@@ -16,6 +16,7 @@ function SpecificNews() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreArticles, setHasMoreArticles] = useState(true);
   const [totalResults, setTotalResults] = useState(0);
@@ -23,12 +24,22 @@ function SpecificNews() {
   const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
   const NEWS_API_BASE_URL = import.meta.env.VITE_NEWS_API_BASE_URL || 'https://newsapi.org/v2';
 
+  // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!authLoading && !currentUser) {
+      toast.error('Please log in to view specific news categories');
+      navigate('/login');
+    }
+  }, [currentUser, authLoading, navigate]);
 
   const formatTimeAgo = (dateString) => {
     const now = new Date();
@@ -224,24 +235,47 @@ const fetchNews = useCallback(
     fetchNews(nextPage, true);
   };
 
-  // Initial fetch
+  // Initial fetch - only after user is authenticated
   useEffect(() => {
-    if (id) {
+    if (id && currentUser && !authLoading) {
       setCurrentPage(1);
       setNewsArticles([]);
       setHasMoreArticles(true);
       fetchNews(1, false);
     }
-  }, [id, fetchNews]);
+  }, [id, currentUser, authLoading, fetchNews]);
 
   const checkLoginStatus = (articleUrl) => {
     if (!currentUser) {
       toast.error('Please log in to read full articles');
-      navigate('/user/login');
+      navigate('/login');
     } else {
       window.open(articleUrl, '_blank');
     }
   };
+
+  // Show loading while checking authentication
+  if (authLoading) {
+    return (
+      <div>
+        <Header />
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <RefreshCw className="h-20 w-20 animate-spin text-purple-600 mx-auto mb-4" />
+            <p className="text-gray-800 text-lg">Checking authentication...</p>
+            <p className="text-gray-700 text-sm mt-2">
+              Please wait while we verify your login status
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render anything if user is not authenticated (redirect will happen)
+  if (!currentUser) {
+    return null;
+  }
 
   if (loading) {
     return (

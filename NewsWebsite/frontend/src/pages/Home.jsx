@@ -15,11 +15,15 @@ import {
   RefreshCw, 
 } from "lucide-react";
 import Header from "../components/Header";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '../utils/firebaseConfig';
 import axios from "axios";
 import toast from "react-hot-toast";
 
 function Home() {
+  const navigate = useNavigate();
+  const [currentUser, setCurrentUser] = useState(null);
   const [newsCategories, setNewsCategories] = useState({
     topHeadlines: [],
     sports: [],
@@ -45,6 +49,24 @@ function Home() {
   const NEWS_API_BASE_URL =
     import.meta.env.VITE_NEWS_API_BASE_URL || "https://newsapi.org/v2";
   const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
+
+  // Firebase auth state listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Check login status before opening article
+  const checkLoginStatus = (articleUrl) => {
+    if (!currentUser) {
+      toast.error('Please log in to read full articles');
+      navigate('/login');
+    } else {
+      window.open(articleUrl, '_blank');
+    }
+  };
 
   const fetchGivenNews = useCallback(async (endpoint, category) => {
     const response = await axios.get(
@@ -429,21 +451,17 @@ function Home() {
                       </div>
                     </div>
                     <div className="flex space-x-4">
-                      <a
-                        href={breakingNews.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => checkLoginStatus(breakingNews.url)}
                         className="bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors"
                       >
                         Read Full Story
-                      </a>
+                      </button>
                     </div>
                   </div>
                   <div className="relative group cursor-pointer">
-                    <a
-                      href={breakingNews.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <div
+                      onClick={() => checkLoginStatus(breakingNews.url)}
                       className="block"
                     >
                       <div className="overflow-hidden rounded-xl shadow-2xl">
@@ -456,7 +474,7 @@ function Home() {
                       <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
                         BREAKING
                       </div>
-                    </a>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -464,139 +482,135 @@ function Home() {
           )}
 
           {/* Top Headlines Section with Scrollable Cards and Numbered List */}
-          <div className="mb-12">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">
+<div className="mb-12">
+  <div className="flex items-center justify-between mb-6">
+    <h2 className="text-2xl font-bold text-gray-900">
+      Top Headlines
+    </h2>
+    <div className="text-sm text-gray-500 hidden sm:block">
+      Drag to scroll horizontally
+    </div>
+  </div>
+  
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    {/* Scrollable Cards Section - 2/3 width */}
+    <div className="lg:col-span-2 space-y-6">
+      {/* Scrollable Cards */}
+      <div 
+        ref={scrollContainerRef}
+        className={`flex overflow-x-auto space-x-6 pb-4 scrollbar-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+        style={{ userSelect: isDragging ? 'none' : 'auto' }}
+        onMouseDown={handleMouseDown}
+        onMouseLeave={handleMouseLeave}
+        onMouseUp={handleMouseUp}
+        onMouseMove={handleMouseMove}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {otherTopNews.map((article) => (
+          <div
+            key={article.id}
+            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 w-80 group cursor-pointer"
+            onClick={(e) => {
+              // Prevent click during drag
+              if (isDragging) {
+                e.preventDefault();
+                e.stopPropagation();
+              } else {
+                checkLoginStatus(article.url);
+              }
+            }}
+          >
+            <div className="relative overflow-hidden">
+              <img
+                src={article.image}
+                alt={article.title}
+                className="w-full h-48 object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                draggable={false}
+              />
+              <div className="absolute top-3 left-3 bg-red-600 text-white px-2 py-1 rounded text-xs font-semibold">
                 Top Headlines
-              </h2>
-              <div className="text-sm text-gray-500 hidden sm:block">
-                Drag to scroll horizontally
               </div>
             </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Scrollable Cards Section - 2/3 width */}
-              <div className="lg:col-span-2">
-                <div 
-                  ref={scrollContainerRef}
-                  className={`flex overflow-x-auto space-x-6 pb-4 scrollbar-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-                  style={{ userSelect: isDragging ? 'none' : 'auto' }}
-                  onMouseDown={handleMouseDown}
-                  onMouseLeave={handleMouseLeave}
-                  onMouseUp={handleMouseUp}
-                  onMouseMove={handleMouseMove}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                >
-                  {otherTopNews.map((article) => (
-                    <div
-                      key={article.id}
-                      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 w-80 group cursor-pointer"
-                      onClick={(e) => {
-                        // Prevent click during drag
-                        if (isDragging) {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        } else {
-                          window.open(article.url, '_blank', 'noopener,noreferrer');
-                        }
-                      }}
-                    >
-                      <div className="relative overflow-hidden">
-                        <img
-                          src={article.image}
-                          alt={article.title}
-                          className="w-full h-48 object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                          draggable={false}
-                        />
-                        <div className="absolute top-3 left-3 bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">
-                          Top Headlines
-                        </div>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
-                          {article.title}
-                        </h3>
-                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                          {article.summary}
-                        </p>
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div className="flex items-center space-x-2">
-                            <span>{article.author}</span>
-                            <span>•</span>
-                            <span>{formatTimeAgo(article.publishedAt)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <span>{article.readTime}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {/* View More Button at the end */}
-                  <div className="flex-shrink-0 w-80 flex items-center justify-center">
-                    <Link
-                      to="/news/TopHeadlines"
-                      className="bg-gradient-to-br from-blue-600 to-purple-600 text-white rounded-lg p-8 text-center hover:from-blue-700 hover:to-purple-700 transition-all duration-300 cursor-pointer group w-full block"
-                    >
-                      <div className="space-y-4">
-                        <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto group-hover:scale-110 transition-transform duration-300">
-                          <Zap className="h-8 w-8 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-xl font-bold mb-2">View More Headlines</h3>
-                          <p className="text-blue-100 text-sm">
-                            Discover more top stories and breaking news
-                          </p>
-                        </div>
-                        <div className="flex items-center justify-center space-x-2 text-sm font-semibold">
-                          <span>Explore All</span>
-                          <ChevronRight className="h-4 w-4 group-hover:translate-x-1 transition-transform duration-300" />
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
+            <div className="p-4">
+              <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                {article.title}
+              </h3>
+              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                {article.summary}
+              </p>
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <div className="flex items-center space-x-2">
+                  <span>{article.author}</span>
+                  <span>•</span>
+                  <span>{formatTimeAgo(article.publishedAt)}</span>
                 </div>
-              </div>
-
-              {/* Numbered Headlines List - 1/3 width */}
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-lg shadow-md p-6 h-fit">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
-                    <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-                      #
-                    </span>
-                    <span>Top Stories</span>
-                  </h3>
-                  <div className="space-y-4">
-                    {newsCategories.topHeadlines.slice(0, 5).map((article, index) => (
-                      <div
-                        key={article.id}
-                        className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-                        onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
-                      >
-                        <div className="text-lg font-bold text-blue-600 w-6 flex-shrink-0">
-                          {index + 1}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug">
-                            {article.title}
-                          </h4>
-                          <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
-                            <span>{formatTimeAgo(article.publishedAt)}</span>
-                            <span>•</span>
-                            <span>{article.readTime}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <div className="flex items-center space-x-1">
+                  <span>{article.readTime}</span>
                 </div>
               </div>
             </div>
           </div>
+        ))}
+      </div>
+
+      {/* View More Headlines Button - Now below the scrollable section */}
+      <div className="flex justify-center">
+        <Link
+          to="/news/TopHeadlines"
+          className="bg-gradient-to-br from-pink-600 to-red-600 text-white rounded-lg px-8 py-4 hover:from-pink-700 hover:to-red-700 transition-all duration-300 cursor-pointer group flex items-center space-x-4 shadow-md hover:shadow-lg"
+        >
+          <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+            <Zap className="h-6 w-6 text-red-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold">View More Headlines</h3>
+            <p className="text-blue-100 text-sm">
+              Discover more top stories and breaking news
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+        </Link>
+      </div>
+    </div>
+
+    {/* Numbered Headlines List - 1/3 width */}
+    <div className="lg:col-span-1">
+      <div className="bg-white rounded-lg shadow-md p-6 h-fit">
+        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
+          <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+            #
+          </span>
+          <span>Top Stories</span>
+        </h3>
+        <div className="space-y-4">
+          {newsCategories.topHeadlines.slice(0, 5).map((article, index) => (
+            <div
+              key={article.id}
+              className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+              onClick={() => checkLoginStatus(article.url)}
+            >
+              <div className="text-lg font-bold text-blue-600 w-6 flex-shrink-0">
+                {index + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug">
+                  {article.title}
+                </h4>
+                <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
+                  <span>{formatTimeAgo(article.publishedAt)}</span>
+                  <span>•</span>
+                  <span>{article.readTime}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
           {/* Categories Section */}
 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -631,7 +645,7 @@ function Home() {
               <div
                 key={article.id}
                 className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer group"
-                onClick={() => window.open(article.url, '_blank', 'noopener,noreferrer')}
+                onClick={() => checkLoginStatus(article.url)}
               >
                 <div className="overflow-hidden rounded-lg flex-shrink-0">
                   <img
