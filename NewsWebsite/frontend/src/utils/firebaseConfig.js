@@ -2,15 +2,19 @@
 import { initializeApp } from "firebase/app";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-import { 
-  getAuth, 
-  GoogleAuthProvider, 
-  signInWithPopup, 
-  createUserWithEmailAndPassword, 
-  signInWithEmailAndPassword, 
-  signOut, 
-  updateProfile, 
-  onAuthStateChanged 
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  onAuthStateChanged,
+  sendEmailVerification,
+  applyActionCode,
+  checkActionCode,
+  reload
 } from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -22,7 +26,6 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
-
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -44,7 +47,14 @@ export const registerWithEmailPass = async (email, password, displayName = null)
       await updateProfile(user, { displayName });
     }
     
-    return { user, error: null };
+    // Send email verification
+    await sendEmailVerification(user);
+    
+    return { 
+      user, 
+      error: null, 
+      message: "Registration successful! Please check your email to verify your account." 
+    };
   } catch (error) {
     return { user: null, error };
   }
@@ -54,13 +64,89 @@ export const registerWithEmailPass = async (email, password, displayName = null)
 export const loginWithEmailPass = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return { user: userCredential.user, error: null };
+    const user = userCredential.user;
+    
+    // Check if email is verified
+    if (!user.emailVerified) {
+      return { 
+        user: null, 
+        error: new Error("Please verify your email before logging in."),
+        needsVerification: true
+      };
+    }
+    
+    return { user, error: null };
   } catch (error) {
     return { user: null, error };
   }
 };
 
-// Google login
+// Send email verification to current user
+export const sendVerificationEmail = async () => {
+  try {
+    const user = auth.currentUser;
+    if (user) {
+      await sendEmailVerification(user);
+      return { 
+        error: null, 
+        message: "Verification email sent! Please check your inbox." 
+      };
+    }
+    return { error: new Error("No authenticated user") };
+  } catch (error) {
+    return { error };
+  }
+};
+
+// Verify email with action code (from email link)
+export const verifyEmail = async (actionCode) => {
+  try {
+    await applyActionCode(auth, actionCode);
+    
+    // Reload user to get updated emailVerified status
+    if (auth.currentUser) {
+      await reload(auth.currentUser);
+    }
+    
+    return { 
+      error: null, 
+      message: "Email verified successfully!" 
+    };
+  } catch (error) {
+    return { error };
+  }
+};
+
+// Check action code validity (optional - to get info about the code)
+export const checkVerificationCode = async (actionCode) => {
+  try {
+    const info = await checkActionCode(auth, actionCode);
+    return { info, error: null };
+  } catch (error) {
+    return { info: null, error };
+  }
+};
+
+// Check if current user's email is verified
+export const isEmailVerified = () => {
+  const user = auth.currentUser;
+  return user ? user.emailVerified : false;
+};
+
+// Refresh user data (useful after email verification)
+export const refreshUser = async () => {
+  try {
+    if (auth.currentUser) {
+      await reload(auth.currentUser);
+      return { user: auth.currentUser, error: null };
+    }
+    return { user: null, error: new Error("No authenticated user") };
+  } catch (error) {
+    return { user: null, error };
+  }
+};
+
+// Google login (already verified by Google)
 export const googleLogin = async () => {
   try {
     const result = await signInWithPopup(auth, googleProvider);

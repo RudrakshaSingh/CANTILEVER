@@ -24,6 +24,11 @@ function SpecificNews() {
   const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
   const NEWS_API_BASE_URL = import.meta.env.VITE_NEWS_API_BASE_URL || 'https://newsapi.org/v2';
 
+  // Scroll to top when component mounts or id changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
   // Auth state listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -183,8 +188,7 @@ const fetchNews = useCallback(
         }
       }
 
-    } catch (error) {
-      console.error("Error fetching news:", error);
+    } catch{
       
       // Check if it's an axios error with response data
       if (error.response && error.response.data) {

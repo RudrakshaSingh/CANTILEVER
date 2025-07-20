@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Newspaper,
   Users,
@@ -75,6 +75,11 @@ function AboutUs() {
     "Ad-free premium content",
     "Interactive multimedia stories",
   ];
+
+  // Scroll to top when component mounts or id changes
+    useEffect(() => {
+      window.scrollTo(0, 0);
+    }, []);
 
   return (
     <div>

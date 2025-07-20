@@ -1,7 +1,7 @@
-// UserLogin component with Toast notifications
+// UserLogin component with Toast notifications and Email Verification
 import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
-import { loginWithEmailPass, googleLogin } from "../utils/firebaseConfig";
+import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle } from "lucide-react";
+import { loginWithEmailPass, googleLogin, sendVerificationEmail } from "../utils/firebaseConfig";
 import { toast } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -16,6 +16,8 @@ function UserLogin() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
   const [showPasswordField, setShowPasswordField] = useState(false);
+  const [showVerificationPrompt, setShowVerificationPrompt] = useState(false);
+  const [isResendingVerification, setIsResendingVerification] = useState(false);
 
   const handleInputUpdate = (e) => {
     const { id, value } = e.target;
@@ -23,6 +25,11 @@ function UserLogin() {
 
     if (validationErrors[id]) {
       setValidationErrors((previous) => ({ ...previous, [id]: "" }));
+    }
+
+    // Hide verification prompt if user starts typing
+    if (showVerificationPrompt) {
+      setShowVerificationPrompt(false);
     }
   };
 
@@ -53,6 +60,33 @@ function UserLogin() {
     return Object.keys(inputErrors).length === 0;
   };
 
+  const handleResendVerification = async () => {
+    setIsResendingVerification(true);
+    
+    const loadingToast = toast.loading("Sending verification email...");
+
+    try {
+      const { error, message } = await sendVerificationEmail();
+      
+      if (error) {
+        toast.error("Failed to send verification email. Please try again after a few minutes.", {
+          id: loadingToast,
+        });
+      } else {
+        toast.success(message || "Verification email sent successfully!", {
+          id: loadingToast,
+          duration: 5000,
+        });
+      }
+    } catch {
+      toast.error("An unexpected error occurred. Please try again.", {
+        id: loadingToast,
+      });
+    } finally {
+      setIsResendingVerification(false);
+    }
+  };
+
   const handleFormSubmission = async (e) => {
     e.preventDefault();
 
@@ -61,18 +95,29 @@ function UserLogin() {
     }
 
     setIsSubmitting(true);
+    setShowVerificationPrompt(false);
 
     // Show loading toast
     const loadingToast = toast.loading("Signing you in...");
 
     try {
       // Firebase login
-      const { user, error } = await loginWithEmailPass(
+      const { user, error, needsVerification } = await loginWithEmailPass(
         loginData.emailAddress,
         loginData.userPassword
       );
 
       if (error) {
+        // Handle email verification case
+        if (needsVerification) {
+          toast.error("Please verify your email before logging in.", {
+            id: loadingToast,
+            duration: 4000,
+          });
+          setShowVerificationPrompt(true);
+          return;
+        }
+
         // Handle different Firebase auth errors
         let errorMessage = "Login failed. Please try again.";
         if (error.code === "auth/user-not-found") {
@@ -85,6 +130,8 @@ function UserLogin() {
           errorMessage = "This account has been disabled.";
         } else if (error.code === "auth/too-many-requests") {
           errorMessage = "Too many failed attempts. Please try again later.";
+        } else if (error.code === "auth/invalid-credential") {
+          errorMessage = "Invalid credentials. Please check your email and password.";
         }
 
         toast.error(errorMessage, { id: loadingToast });
@@ -103,7 +150,8 @@ function UserLogin() {
         userPassword: "",
       });
       setValidationErrors({});
-      setIsSubmitting(false);
+      setShowVerificationPrompt(false);
+      
       // Navigate to dashboard or home
       navigate("/");
     } catch {
@@ -117,6 +165,7 @@ function UserLogin() {
 
   const handleGoogleAuthentication = async () => {
     setGoogleAuthLoading(true);
+    setShowVerificationPrompt(false);
 
     // Show loading toast
     const loadingToast = toast.loading("Connecting with Google...");
@@ -132,20 +181,22 @@ function UserLogin() {
         } else if (error.code === "auth/popup-blocked") {
           errorMessage =
             "Popup was blocked. Please allow popups and try again.";
+        } else if (error.code === "auth/cancelled-popup-request") {
+          errorMessage = "Sign-in was cancelled. Please try again.";
         }
 
         toast.error(errorMessage, { id: loadingToast });
         return;
       }
 
-      // Handle success
+      // Handle success - Google accounts are automatically verified
       toast.success(`Welcome back, ${user.displayName || "User"}!`, {
         id: loadingToast,
         duration: 4000,
       });
 
       // Navigate to dashboard or home
-        navigate("/");
+      navigate("/");
     } catch {
       toast.error("An unexpected error occurred. Please try again.", {
         id: loadingToast,
@@ -178,6 +229,40 @@ function UserLogin() {
               Sign in to your account to continue
             </p>
           </div>
+
+          {/* Email Verification Prompt */}
+          {showVerificationPrompt && (
+            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg relative z-10">
+              <div className="flex items-start">
+                <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5 mr-3 flex-shrink-0" />
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-amber-800 mb-1">
+                    Email Verification Required
+                  </h4>
+                  <p className="text-sm text-amber-700 mb-3">
+                    Please check your email and click the verification link before signing in.
+                  </p>
+                  <button
+                    onClick={handleResendVerification}
+                    disabled={isResendingVerification}
+                    className="text-sm font-medium text-amber-800 hover:text-amber-900 underline disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {isResendingVerification ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-amber-800 mr-2"></div>
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-4 h-4 mr-1" />
+                        Resend verification email
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Login Form */}
           <form
@@ -249,22 +334,14 @@ function UserLogin() {
               </div>
             </div>
 
-            {/* remember me  */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="remember-me"
-                  className="ml-2 block text-sm text-gray-700"
-                >
-                  Remember me
-                </label>
-              </div>
+            {/* Forgot Password Link */}
+            <div className="flex justify-end">
+              <Link 
+                to="/user/forgot-password" 
+                className="text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors duration-200"
+              >
+                Forgot your password?
+              </Link>
             </div>
 
             {/* Submit Button */}

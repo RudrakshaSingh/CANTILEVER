@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { 
   Mail, 
   Phone, 
@@ -18,6 +18,10 @@ function ContactUs() {
     { icon: Star, label: 'Satisfaction Rate', value: '99%' },
     { icon: Globe, label: 'Countries Served', value: '50+' }
   ];
+  // Scroll to top when component mounts or id changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   return (
     <div>

@@ -258,18 +258,7 @@ function Home() {
 
       setErrorCount(failedCount);
 
-      console.log("Fetched news data:", {
-        topHeadlines,
-        sports,
-        business,
-        entertainment,
-        technology,
-        health,
-        science,
-        world,
-        politics,
-        gaming,
-      });
+     
 
       // Process and set news data
       setNewsCategories({
@@ -294,8 +283,7 @@ function Home() {
         toast.success(`News loaded! (${results.length - failedCount}/${results.length} categories successful)`);
       }
 
-    } catch (error) {
-      console.error("Error fetching news:", error);
+    } catch{
       toast.error("Failed to load news. Please try again later.");
       setErrorCount(10); // Set high error count to indicate complete failure
     } finally {
