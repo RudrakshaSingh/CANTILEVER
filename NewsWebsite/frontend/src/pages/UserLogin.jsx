@@ -1,7 +1,18 @@
-// UserLogin component with Toast notifications and Email Verification
-import React, { useState } from "react";
-import { Mail, Lock, Eye, EyeOff, LogIn, AlertCircle, CheckCircle } from "lucide-react";
-import { loginWithEmailPass, googleLogin, sendVerificationEmail } from "../utils/firebaseConfig";
+import { useState } from "react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  LogIn,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import {
+  loginWithEmailPass,
+  googleLogin,
+  sendVerificationEmail,
+} from "../utils/firebaseConfig";
 import { toast } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -62,16 +73,19 @@ function UserLogin() {
 
   const handleResendVerification = async () => {
     setIsResendingVerification(true);
-    
+
     const loadingToast = toast.loading("Sending verification email...");
 
     try {
       const { error, message } = await sendVerificationEmail();
-      
+
       if (error) {
-        toast.error("Failed to send verification email. Please try again after a few minutes.", {
-          id: loadingToast,
-        });
+        toast.error(
+          "Failed to send verification email. Please try again after a few minutes.",
+          {
+            id: loadingToast,
+          }
+        );
       } else {
         toast.success(message || "Verification email sent successfully!", {
           id: loadingToast,
@@ -131,7 +145,8 @@ function UserLogin() {
         } else if (error.code === "auth/too-many-requests") {
           errorMessage = "Too many failed attempts. Please try again later.";
         } else if (error.code === "auth/invalid-credential") {
-          errorMessage = "Invalid credentials. Please check your email and password.";
+          errorMessage =
+            "Invalid credentials. Please check your email and password.";
         }
 
         toast.error(errorMessage, { id: loadingToast });
@@ -151,7 +166,7 @@ function UserLogin() {
       });
       setValidationErrors({});
       setShowVerificationPrompt(false);
-      
+
       // Navigate to dashboard or home
       navigate("/");
     } catch {
@@ -240,7 +255,8 @@ function UserLogin() {
                     Email Verification Required
                   </h4>
                   <p className="text-sm text-amber-700 mb-3">
-                    Please check your email and click the verification link before signing in.
+                    Please check your email and click the verification link
+                    before signing in.
                   </p>
                   <button
                     onClick={handleResendVerification}
@@ -336,8 +352,8 @@ function UserLogin() {
 
             {/* Forgot Password Link */}
             <div className="flex justify-end">
-              <Link 
-                to="/user/forgot-password" 
+              <Link
+                to="/forgot-password"
                 className="text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors duration-200"
               >
                 Forgot your password?

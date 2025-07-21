@@ -14,7 +14,10 @@ import {
   sendEmailVerification,
   applyActionCode,
   checkActionCode,
-  reload
+  reload,
+  sendPasswordResetEmail,
+  confirmPasswordReset,
+  verifyPasswordResetCode
 } from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -124,6 +127,46 @@ export const checkVerificationCode = async (actionCode) => {
     return { info, error: null };
   } catch (error) {
     return { info: null, error };
+  }
+};
+
+// Send password reset email
+export const sendPasswordResetEmailToUser = async (email) => {
+  try {
+    await sendPasswordResetEmail(auth, email);
+    return { 
+      error: null, 
+      message: "Password reset email sent! Please check your inbox." 
+    };
+  } catch (error) {
+    return { error };
+  }
+};
+
+// Verify password reset code (optional - to check if code is valid before showing reset form)
+export const checkPasswordResetCode = async (actionCode) => {
+  try {
+    const email = await verifyPasswordResetCode(auth, actionCode);
+    return { 
+      email, 
+      error: null, 
+      message: "Password reset code is valid." 
+    };
+  } catch (error) {
+    return { email: null, error };
+  }
+};
+
+// Confirm password reset with new password
+export const confirmPasswordResetWithCode = async (actionCode, newPassword) => {
+  try {
+    await confirmPasswordReset(auth, actionCode, newPassword);
+    return { 
+      error: null, 
+      message: "Password has been reset successfully! You can now login with your new password." 
+    };
+  } catch (error) {
+    return { error };
   }
 };
 

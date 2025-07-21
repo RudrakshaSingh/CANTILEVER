@@ -1,4 +1,4 @@
-import React, { useState, useEffect , useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Clock,
   Globe,
@@ -12,12 +12,12 @@ import {
   Building,
   Microscope,
   Trophy,
-  RefreshCw, 
+  RefreshCw,
 } from "lucide-react";
 import Header from "../components/Header";
 import { Link, useNavigate } from "react-router-dom";
-import { onAuthStateChanged } from 'firebase/auth';
-import { auth } from '../utils/firebaseConfig';
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../utils/firebaseConfig";
 import axios from "axios";
 import toast from "react-hot-toast";
 
@@ -39,7 +39,7 @@ function Home() {
 
   const [loading, setLoading] = useState(true);
   const [errorCount, setErrorCount] = useState(0);
-  
+
   // Drag scrolling state
   const scrollContainerRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -61,42 +61,46 @@ function Home() {
   // Check login status before opening article
   const checkLoginStatus = (articleUrl) => {
     if (!currentUser) {
-      toast.error('Please log in to read full articles');
-      navigate('/login');
+      toast.error("Please log in to read full articles");
+      navigate("/login");
     } else {
-      window.open(articleUrl, '_blank');
+      window.open(articleUrl, "_blank");
     }
   };
 
-  const fetchGivenNews = useCallback(async (endpoint, category) => {
-    const response = await axios.get(
-      `${NEWS_API_BASE_URL}/${endpoint}?apiKey=${NEWS_API_KEY}${category}`,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
+  const fetchGivenNews = useCallback(
+    async (endpoint, category) => {
+      const response = await axios.get(
+        `${NEWS_API_BASE_URL}/${endpoint}?apiKey=${NEWS_API_KEY}${category}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.status !== 200) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-    );
 
-    if (response.status !== 200) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = response.data;
-    return data.articles || [];
-  }, [NEWS_API_BASE_URL, NEWS_API_KEY]);
+      const data = response.data;
+      return data.articles || [];
+    },
+    [NEWS_API_BASE_URL, NEWS_API_KEY]
+  );
 
   const processArticles = useCallback((articles, categoryName = "") => {
     return articles
-      .filter(article => 
-        article &&
-        article.title &&
-        article.title !== '[Removed]' &&
-        article.description &&
-        article.urlToImage &&
-        article.urlToImage !== null &&
-        !article.title.includes('removed') &&
-        article.source.name
+      .filter(
+        (article) =>
+          article &&
+          article.title &&
+          article.title !== "[Removed]" &&
+          article.description &&
+          article.urlToImage &&
+          article.urlToImage !== null &&
+          !article.title.includes("removed") &&
+          article.source.name
       )
       .map((article, index) => {
         return {
@@ -125,11 +129,11 @@ function Home() {
   // Drag scrolling handlers
   const handleMouseDown = useCallback((e) => {
     if (!scrollContainerRef.current) return;
-    
+
     setIsDragging(true);
     setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
     setScrollLeft(scrollContainerRef.current.scrollLeft);
-    
+
     // Prevent text selection during drag
     e.preventDefault();
   }, []);
@@ -142,31 +146,37 @@ function Home() {
     setIsDragging(false);
   }, []);
 
-  const handleMouseMove = useCallback((e) => {
-    if (!isDragging || !scrollContainerRef.current) return;
-    
-    e.preventDefault();
-    const x = e.pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 2; // Scroll speed multiplier
-    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
-  }, [isDragging, startX, scrollLeft]);
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (!isDragging || !scrollContainerRef.current) return;
+
+      e.preventDefault();
+      const x = e.pageX - scrollContainerRef.current.offsetLeft;
+      const walk = (x - startX) * 2; // Scroll speed multiplier
+      scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+    },
+    [isDragging, startX, scrollLeft]
+  );
 
   // Touch events for mobile drag scrolling
   const handleTouchStart = useCallback((e) => {
     if (!scrollContainerRef.current) return;
-    
+
     setIsDragging(true);
     setStartX(e.touches[0].pageX - scrollContainerRef.current.offsetLeft);
     setScrollLeft(scrollContainerRef.current.scrollLeft);
   }, []);
 
-  const handleTouchMove = useCallback((e) => {
-    if (!isDragging || !scrollContainerRef.current) return;
-    
-    const x = e.touches[0].pageX - scrollContainerRef.current.offsetLeft;
-    const walk = (x - startX) * 2;
-    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
-  }, [isDragging, startX, scrollLeft]);
+  const handleTouchMove = useCallback(
+    (e) => {
+      if (!isDragging || !scrollContainerRef.current) return;
+
+      const x = e.touches[0].pageX - scrollContainerRef.current.offsetLeft;
+      const walk = (x - startX) * 2;
+      scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+    },
+    [isDragging, startX, scrollLeft]
+  );
 
   const handleTouchEnd = useCallback(() => {
     setIsDragging(false);
@@ -220,7 +230,7 @@ function Home() {
 
       // Use Promise.allSettled to handle partial failures gracefully
       const results = await Promise.allSettled(newsPromises);
-      
+
       let failedCount = 0;
       const [
         topHeadlinesResult,
@@ -237,7 +247,7 @@ function Home() {
 
       // Extract successful results and count failures
       const extractResult = (result) => {
-        if (result.status === 'fulfilled') {
+        if (result.status === "fulfilled") {
           return result.value;
         } else {
           failedCount++;
@@ -258,8 +268,6 @@ function Home() {
 
       setErrorCount(failedCount);
 
-     
-
       // Process and set news data
       setNewsCategories({
         topHeadlines: processArticles(topHeadlines || [], "Breaking"),
@@ -278,12 +286,17 @@ function Home() {
       if (failedCount === 0) {
         toast.success("Latest news loaded successfully!");
       } else if (failedCount === results.length) {
-        toast.error("Unable to load news. Please check your connection and try again.");
+        toast.error(
+          "Unable to load news. Please check your connection and try again."
+        );
       } else {
-        toast.success(`News loaded! (${results.length - failedCount}/${results.length} categories successful)`);
+        toast.success(
+          `News loaded! (${results.length - failedCount}/${
+            results.length
+          } categories successful)`
+        );
       }
-
-    } catch{
+    } catch {
       toast.error("Failed to load news. Please try again later.");
       setErrorCount(10); // Set high error count to indicate complete failure
     } finally {
@@ -352,7 +365,7 @@ function Home() {
     Politics: Building,
     Health: Heart,
     Science: Microscope,
-    Gaming: Gamepad2
+    Gaming: Gamepad2,
   };
 
   // Show error state if all requests failed
@@ -363,15 +376,28 @@ function Home() {
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center max-w-md">
             <div className="bg-red-100 rounded-full p-4 mx-auto mb-4 w-fit">
-              <svg className="h-12 w-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="h-12 w-12 text-red-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Unable to Load News</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Unable to Load News
+            </h2>
             <p className="text-gray-600 mb-6">
-              We're having trouble connecting to our news service. Please check your internet connection and try again.
+              We're having trouble connecting to our news service. Please check
+              your internet connection and try again.
             </p>
-            <button 
+            <button
               onClick={fetchNews}
               className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
             >
@@ -393,13 +419,22 @@ function Home() {
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
             <div className="flex">
               <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <svg
+                  className="h-5 w-5 text-yellow-400"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700">
-                  Some news categories couldn't be loaded. Showing available content.
+                  Some news categories couldn't be loaded. Showing available
+                  content.
                 </p>
               </div>
             </div>
@@ -470,220 +505,230 @@ function Home() {
           )}
 
           {/* Top Headlines Section with Scrollable Cards and Numbered List */}
-<div className="mb-12">
-  <div className="flex items-center justify-between mb-6">
-    <h2 className="text-2xl font-bold text-gray-900">
-      Top Headlines
-    </h2>
-    <div className="text-sm text-gray-500 hidden sm:block">
-      Drag to scroll horizontally
-    </div>
-  </div>
-  
-  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-    {/* Scrollable Cards Section - 2/3 width */}
-    <div className="lg:col-span-2 space-y-6">
-      {/* Scrollable Cards */}
-      <div 
-        ref={scrollContainerRef}
-        className={`flex overflow-x-auto space-x-6 pb-4 scrollbar-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
-        style={{ userSelect: isDragging ? 'none' : 'auto' }}
-        onMouseDown={handleMouseDown}
-        onMouseLeave={handleMouseLeave}
-        onMouseUp={handleMouseUp}
-        onMouseMove={handleMouseMove}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {otherTopNews.map((article) => (
-          <div
-            key={article.id}
-            className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 w-80 group cursor-pointer"
-            onClick={(e) => {
-              // Prevent click during drag
-              if (isDragging) {
-                e.preventDefault();
-                e.stopPropagation();
-              } else {
-                checkLoginStatus(article.url);
-              }
-            }}
-          >
-            <div className="relative overflow-hidden">
-              <img
-                src={article.image}
-                alt={article.title}
-                className="w-full h-48 object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
-                draggable={false}
-              />
-              <div className="absolute top-3 left-3 bg-red-600 text-white px-2 py-1 rounded text-xs font-semibold">
+          <div className="mb-12">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gray-900">
                 Top Headlines
+              </h2>
+              <div className="text-sm text-gray-500 hidden sm:block">
+                Drag to scroll horizontally
               </div>
             </div>
-            <div className="p-4">
-              <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
-                {article.title}
-              </h3>
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                {article.summary}
-              </p>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <div className="flex items-center space-x-2">
-                  <span>{article.author}</span>
-                  <span>•</span>
-                  <span>{formatTimeAgo(article.publishedAt)}</span>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Scrollable Cards Section - 2/3 width */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* Scrollable Cards */}
+                <div
+                  ref={scrollContainerRef}
+                  className={`flex overflow-x-auto space-x-6 pb-4 scrollbar-none ${
+                    isDragging ? "cursor-grabbing" : "cursor-grab"
+                  }`}
+                  style={{ userSelect: isDragging ? "none" : "auto" }}
+                  onMouseDown={handleMouseDown}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseUp={handleMouseUp}
+                  onMouseMove={handleMouseMove}
+                  onTouchStart={handleTouchStart}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                >
+                  {otherTopNews.map((article) => (
+                    <div
+                      key={article.id}
+                      className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex-shrink-0 w-80 group cursor-pointer"
+                      onClick={(e) => {
+                        // Prevent click during drag
+                        if (isDragging) {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        } else {
+                          checkLoginStatus(article.url);
+                        }
+                      }}
+                    >
+                      <div className="relative overflow-hidden">
+                        <img
+                          src={article.image}
+                          alt={article.title}
+                          className="w-full h-48 object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
+                          draggable={false}
+                        />
+                        <div className="absolute top-3 left-3 bg-red-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                          Top Headlines
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-bold text-lg mb-2 text-gray-900 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                          {article.title}
+                        </h3>
+                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                          {article.summary}
+                        </p>
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-2">
+                            <span>{article.author}</span>
+                            <span>•</span>
+                            <span>{formatTimeAgo(article.publishedAt)}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <span>{article.readTime}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-center space-x-1">
-                  <span>{article.readTime}</span>
+
+                {/* View More Headlines Button - Now below the scrollable section */}
+                <div className="flex justify-center">
+                  <Link
+                    to="/news/TopHeadlines"
+                    className="bg-gradient-to-br from-pink-600 to-red-600 text-white rounded-lg px-8 py-4 hover:from-pink-700 hover:to-red-700 transition-all duration-300 cursor-pointer group flex items-center space-x-4 shadow-md hover:shadow-lg"
+                  >
+                    <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <Zap className="h-6 w-6 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">View More Headlines</h3>
+                      <p className="text-blue-100 text-sm">
+                        Discover more top stories and breaking news
+                      </p>
+                    </div>
+                    <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
+                  </Link>
                 </div>
               </div>
-            </div>
-          </div>
-        ))}
-      </div>
 
-      {/* View More Headlines Button - Now below the scrollable section */}
-      <div className="flex justify-center">
-        <Link
-          to="/news/TopHeadlines"
-          className="bg-gradient-to-br from-pink-600 to-red-600 text-white rounded-lg px-8 py-4 hover:from-pink-700 hover:to-red-700 transition-all duration-300 cursor-pointer group flex items-center space-x-4 shadow-md hover:shadow-lg"
-        >
-          <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
-            <Zap className="h-6 w-6 text-red-600" />
-          </div>
-          <div>
-            <h3 className="text-lg font-bold">View More Headlines</h3>
-            <p className="text-blue-100 text-sm">
-              Discover more top stories and breaking news
-            </p>
-          </div>
-          <ChevronRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
-        </Link>
-      </div>
-    </div>
-
-    {/* Numbered Headlines List - 1/3 width */}
-    <div className="lg:col-span-1">
-      <div className="bg-white rounded-lg shadow-md p-6 h-fit">
-        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
-          <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
-            #
-          </span>
-          <span>Top Stories</span>
-        </h3>
-        <div className="space-y-4">
-          {newsCategories.topHeadlines.slice(0, 5).map((article, index) => (
-            <div
-              key={article.id}
-              className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
-              onClick={() => checkLoginStatus(article.url)}
-            >
-              <div className="text-lg font-bold text-blue-600 w-6 flex-shrink-0">
-                {index + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug">
-                  {article.title}
-                </h4>
-                <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
-                  <span>{formatTimeAgo(article.publishedAt)}</span>
-                  <span>•</span>
-                  <span>{article.readTime}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-          {/* Categories Section */}
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-  {Object.entries(newsCategories).map(([categoryKey, articles]) => {
-    if (categoryKey === "topHeadlines" || articles.length === 0)
-      return null;
-
-    const categoryName =
-      categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
-    const IconComponent = categoryIcons[categoryName] || Globe;
-
-    // Show up to 3 articles, but ensure we have at least content for proper spacing
-    const displayArticles = articles.slice(0, 3);
-    const hasViewMore = articles.length > 3 || articles.length > 0; // Show view more if there are any articles
-
-    return (
-      <div
-        key={categoryKey}
-        className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col"
-      >
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
-          <div className="flex items-center space-x-2">
-            <IconComponent className="h-5 w-5" />
-            <h3 className="font-bold text-lg">{categoryName}</h3>
-          </div>
-        </div>
-        
-        {/* Articles container with flex-grow to fill available space */}
-        <div className="flex-grow">
-          <div className="p-4 space-y-4">
-            {displayArticles.map((article) => (
-              <div
-                key={article.id}
-                className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer group"
-                onClick={() => checkLoginStatus(article.url)}
-              >
-                <div className="overflow-hidden rounded-lg flex-shrink-0">
-                  <img
-                    src={article.image}
-                    alt={article.title}
-                    className="w-16 h-16 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
-                    {article.title}
-                  </h4>
-                  <div className="flex items-center space-x-2 text-xs text-gray-500">
-                    <span>{formatTimeAgo(article.publishedAt)}</span>
-                    <span>•</span>
-                    <span>{article.readTime}</span>
+              {/* Numbered Headlines List - 1/3 width */}
+              <div className="lg:col-span-1">
+                <div className="bg-white rounded-lg shadow-md p-6 h-fit">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center space-x-2">
+                    <span className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                      #
+                    </span>
+                    <span>Top Stories</span>
+                  </h3>
+                  <div className="space-y-4">
+                    {newsCategories.topHeadlines
+                      .slice(0, 5)
+                      .map((article, index) => (
+                        <div
+                          key={article.id}
+                          className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                          onClick={() => checkLoginStatus(article.url)}
+                        >
+                          <div className="text-lg font-bold text-blue-600 w-6 flex-shrink-0">
+                            {index + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm text-gray-900 line-clamp-2 leading-snug">
+                              {article.title}
+                            </h4>
+                            <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
+                              <span>{formatTimeAgo(article.publishedAt)}</span>
+                              <span>•</span>
+                              <span>{article.readTime}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                   </div>
                 </div>
               </div>
-            ))}
-            
-            {/* Add placeholder items if we have less than 3 articles to maintain consistent height */}
-            {displayArticles.length < 3 && Array.from({ length: 3 - displayArticles.length }).map((_, index) => (
-              <div key={`placeholder-${index}`} className="h-20 flex items-center justify-center text-gray-400 text-sm">
-                <div className="text-center">
-                  <div className="text-xs opacity-50">More stories loading...</div>
+            </div>
+          </div>
+
+          {/* Categories Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {Object.entries(newsCategories).map(([categoryKey, articles]) => {
+              if (categoryKey === "topHeadlines" || articles.length === 0)
+                return null;
+
+              const categoryName =
+                categoryKey.charAt(0).toUpperCase() + categoryKey.slice(1);
+              const IconComponent = categoryIcons[categoryName] || Globe;
+
+              // Show up to 3 articles, but ensure we have at least content for proper spacing
+              const displayArticles = articles.slice(0, 3);
+              const hasViewMore = articles.length > 3 || articles.length > 0; // Show view more if there are any articles
+
+              return (
+                <div
+                  key={categoryKey}
+                  className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col"
+                >
+                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
+                    <div className="flex items-center space-x-2">
+                      <IconComponent className="h-5 w-5" />
+                      <h3 className="font-bold text-lg">{categoryName}</h3>
+                    </div>
+                  </div>
+
+                  {/* Articles container with flex-grow to fill available space */}
+                  <div className="flex-grow">
+                    <div className="p-4 space-y-4">
+                      {displayArticles.map((article) => (
+                        <div
+                          key={article.id}
+                          className="flex space-x-3 hover:bg-gray-50 p-2 rounded-lg cursor-pointer group"
+                          onClick={() => checkLoginStatus(article.url)}
+                        >
+                          <div className="overflow-hidden rounded-lg flex-shrink-0">
+                            <img
+                              src={article.image}
+                              alt={article.title}
+                              className="w-16 h-16 object-cover transition-transform duration-300 ease-in-out group-hover:scale-110"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm text-gray-900 mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors duration-300">
+                              {article.title}
+                            </h4>
+                            <div className="flex items-center space-x-2 text-xs text-gray-500">
+                              <span>{formatTimeAgo(article.publishedAt)}</span>
+                              <span>•</span>
+                              <span>{article.readTime}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Add placeholder items if we have less than 3 articles to maintain consistent height */}
+                      {displayArticles.length < 3 &&
+                        Array.from({ length: 3 - displayArticles.length }).map(
+                          (_, index) => (
+                            <div
+                              key={`placeholder-${index}`}
+                              className="h-20 flex items-center justify-center text-gray-400 text-sm"
+                            >
+                              <div className="text-center">
+                                <div className="text-xs opacity-50">
+                                  More stories loading...
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        )}
+                    </div>
+                  </div>
+
+                  {/* View More button always at the bottom */}
+                  {hasViewMore && (
+                    <div className="border-t p-4 mt-auto">
+                      <Link
+                        to={getCategoryRoute(categoryKey)}
+                        className="w-full text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center justify-center space-x-2 transition-colors duration-200"
+                      >
+                        <span>View More {categoryName}</span>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </div>
-
-        {/* View More button always at the bottom */}
-        {hasViewMore && (
-          <div className="border-t p-4 mt-auto">
-            <Link
-              to={getCategoryRoute(categoryKey)}
-              className="w-full text-blue-600 hover:text-blue-800 font-semibold text-sm flex items-center justify-center space-x-2 transition-colors duration-200"
-            >
-              <span>View More {categoryName}</span>
-              <ChevronRight className="h-4 w-4" />
-            </Link>
-          </div>
-        )}
-      </div>
-    );
-  })}
-</div>
-
-          
         </div>
       </div>
     </div>

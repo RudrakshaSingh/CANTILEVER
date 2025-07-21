@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import { useEffect } from "react";
 import {
   Newspaper,
   Users,
@@ -6,9 +6,6 @@ import {
   Award,
   Heart,
   Shield,
-  Mail,
-  Phone,
-  MapPin,
   Clock,
   Star,
   TrendingUp,

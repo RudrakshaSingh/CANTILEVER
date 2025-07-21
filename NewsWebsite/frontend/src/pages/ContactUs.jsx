@@ -1,22 +1,22 @@
-import React, { useEffect } from 'react';
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  MessageCircle, 
+import { useEffect } from "react";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  MessageCircle,
   Clock,
   Star,
   Globe,
-  Newspaper
-} from 'lucide-react';
-import Header from '../components/Header';
+  Newspaper,
+} from "lucide-react";
+import Header from "../components/Header";
 
 function ContactUs() {
   const stats = [
-    { icon: MessageCircle, label: 'Messages Answered', value: '10,000+' },
-    { icon: Clock, label: 'Average Response', value: '2 Hours' },
-    { icon: Star, label: 'Satisfaction Rate', value: '99%' },
-    { icon: Globe, label: 'Countries Served', value: '50+' }
+    { icon: MessageCircle, label: "Messages Answered", value: "10,000+" },
+    { icon: Clock, label: "Average Response", value: "2 Hours" },
+    { icon: Star, label: "Satisfaction Rate", value: "99%" },
+    { icon: Globe, label: "Countries Served", value: "50+" },
   ];
   // Scroll to top when component mounts or id changes
   useEffect(() => {
@@ -37,7 +37,8 @@ function ContactUs() {
               Contact Us
             </h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed mb-8">
-              Have a story tip, question, or feedback? We'd love to hear from you. Our team is here to help 24/7.
+              Have a story tip, question, or feedback? We'd love to hear from
+              you. Our team is here to help 24/7.
             </p>
 
             {/* Stats Row */}
@@ -53,9 +54,7 @@ function ContactUs() {
                   <div className="text-2xl font-bold text-gray-800">
                     {stat.value}
                   </div>
-                  <div className="text-sm text-gray-600">
-                    {stat.label}
-                  </div>
+                  <div className="text-sm text-gray-600">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -74,7 +73,8 @@ function ContactUs() {
                   Get in Touch
                 </h2>
                 <p className="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
-                  We're here to help and answer any questions you might have. We look forward to hearing from you!
+                  We're here to help and answer any questions you might have. We
+                  look forward to hearing from you!
                 </p>
               </div>
 
@@ -93,7 +93,9 @@ function ContactUs() {
                         </div>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-2">Email Us</h3>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                          Email Us
+                        </h3>
                         <p className="text-gray-700 font-medium hover:text-purple-600 transition-colors cursor-pointer">
                           contact@newshub.com
                         </p>
@@ -101,7 +103,9 @@ function ContactUs() {
                           newsroom@newshub.com
                         </p>
                         <div className="mt-3 inline-block px-3 py-1 bg-purple-50 rounded-full">
-                          <span className="text-sm text-purple-700 font-medium">Response within 24 hours</span>
+                          <span className="text-sm text-purple-700 font-medium">
+                            Response within 24 hours
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -122,13 +126,17 @@ function ContactUs() {
                         </div>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-2">Call Us</h3>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                          Call Us
+                        </h3>
                         <p className="text-gray-700 font-medium hover:text-indigo-600 transition-colors cursor-pointer text-lg">
                           +91 7953673456
                         </p>
                         <p className="text-gray-600">24/7 Newsroom Hotline</p>
                         <div className="mt-3 inline-block px-3 py-1 bg-indigo-50 rounded-full">
-                          <span className="text-sm text-indigo-700 font-medium">Always Available</span>
+                          <span className="text-sm text-indigo-700 font-medium">
+                            Always Available
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -149,12 +157,22 @@ function ContactUs() {
                         </div>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-gray-800 mb-2">Visit Us</h3>
-                        <p className="text-gray-700 font-medium">NewsHub Headquarters</p>
-                        <p className="text-gray-600">Road No-12, Tronika City</p>
-                        <p className="text-gray-600">Uttar Pradesh, India 251152</p>
+                        <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                          Visit Us
+                        </h3>
+                        <p className="text-gray-700 font-medium">
+                          NewsHub Headquarters
+                        </p>
+                        <p className="text-gray-600">
+                          Road No-12, Tronika City
+                        </p>
+                        <p className="text-gray-600">
+                          Uttar Pradesh, India 251152
+                        </p>
                         <div className="mt-3 inline-block px-3 py-1 bg-purple-50 rounded-full">
-                          <span className="text-sm text-purple-700 font-medium">Open 9 AM - 6 PM</span>
+                          <span className="text-sm text-purple-700 font-medium">
+                            Open 9 AM - 6 PM
+                          </span>
                         </div>
                       </div>
                     </div>

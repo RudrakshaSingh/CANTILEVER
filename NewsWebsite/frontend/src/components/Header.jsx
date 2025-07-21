@@ -37,10 +37,19 @@ function Header() {
   const profileDropdownRef = useRef(null);
   const location = useLocation();
 
-  // Simulate auth state change - replace with your actual Firebase auth
+  
+// Helper function to capitalize first letter of each word
+const capitalizeWords = (str) => {
+  if (!str) return '';
+  return str.split(' ').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  ).join(' ');
+};
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUserLoggedIn(user);
+      
     });
     return () => unsubscribe();
   }, []);
@@ -280,13 +289,13 @@ function Header() {
                 {isProfileDropdownOpen && (
                   <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
                     <div className="px-4 py-2 border-b border-gray-100">
-                      <p className="text-sm font-medium text-gray-900">
-                        {userLoggedIn.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {userLoggedIn.email}
-                      </p>
-                    </div>
+  <p className="text-sm font-medium text-gray-900">
+    {capitalizeWords(userLoggedIn.displayName)}
+  </p>
+  <p className="text-xs text-gray-500">
+    {userLoggedIn.email}
+  </p>
+</div>
                     <Link
                       to="/profile"
                       className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors duration-150"

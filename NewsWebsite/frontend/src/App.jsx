@@ -6,6 +6,7 @@ import AboutUs from './pages/AboutUs'
 import ContactUs from './pages/ContactUs'
 import UserLogin from './pages/UserLogin'
 import SpecificNews from './pages/SpecificNews'
+import ForgotPassword from './pages/ForgotPassword'
 
 
 function App() {
@@ -17,6 +18,8 @@ function App() {
       <Route path="/contact" element={<ContactUs />} />
       <Route path="/login" element={<UserLogin />} />
       <Route path="/news/:id" element={<SpecificNews />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+
     </Routes>
   )
 }

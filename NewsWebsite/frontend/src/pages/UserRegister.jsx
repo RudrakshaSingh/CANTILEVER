@@ -1,8 +1,19 @@
-// Updated UserRegister component with Email Verification and Toast notifications
-import React, { useState } from "react";
-import { User, Mail, Lock, Eye, EyeOff, CheckCircle, AlertCircle } from "lucide-react";
-import { registerWithEmailPass, googleLogin, sendVerificationEmail } from "../utils/firebaseConfig";
-import { toast } from 'react-hot-toast';
+import { useState } from "react";
+import {
+  User,
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+import {
+  registerWithEmailPass,
+  googleLogin,
+  sendVerificationEmail,
+} from "../utils/firebaseConfig";
+import { toast } from "react-hot-toast";
 import { Link, useNavigate } from "react-router-dom";
 
 function UserRegister() {
@@ -17,9 +28,10 @@ function UserRegister() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [googleAuthLoading, setGoogleAuthLoading] = useState(false);
   const [showPasswordField, setShowPasswordField] = useState(false);
-  const [showConfirmPasswordField, setShowConfirmPasswordField] = useState(false);
-  const [registrationStep, setRegistrationStep] = useState('form'); // 'form', 'verification'
-  const [registeredEmail, setRegisteredEmail] = useState('');
+  const [showConfirmPasswordField, setShowConfirmPasswordField] =
+    useState(false);
+  const [registrationStep, setRegistrationStep] = useState("form"); // 'form', 'verification'
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const [resendingEmail, setResendingEmail] = useState(false);
 
   const navigate = useNavigate();
@@ -60,13 +72,13 @@ function UserRegister() {
     }
 
     setValidationErrors(inputErrors);
-    
+
     // Show toast for validation errors
     if (Object.keys(inputErrors).length > 0) {
       const firstError = Object.values(inputErrors)[0];
       toast.error(firstError);
     }
-    
+
     return Object.keys(inputErrors).length === 0;
   };
 
@@ -78,10 +90,10 @@ function UserRegister() {
     }
 
     setIsSubmitting(true);
-    
+
     // Show loading toast
     const loadingToast = toast.loading("Creating your account...");
-    
+
     try {
       // Firebase registration with email verification
       const { error, message } = await registerWithEmailPass(
@@ -94,27 +106,32 @@ function UserRegister() {
         // Handle different Firebase auth errors
         let errorMessage = "Account creation failed. Please try again.";
         if (error.code === "auth/email-already-in-use") {
-          errorMessage = "This email is already registered. Please use a different email.";
+          errorMessage =
+            "This email is already registered. Please use a different email.";
         } else if (error.code === "auth/weak-password") {
-          errorMessage = "Password is too weak. Please choose a stronger password.";
+          errorMessage =
+            "Password is too weak. Please choose a stronger password.";
         } else if (error.code === "auth/invalid-email") {
           errorMessage = "Invalid email address format.";
         }
-        
+
         toast.error(errorMessage, { id: loadingToast });
         return;
       }
 
       // Handle success - show verification step
-      toast.success(message || "Registration successful! Please verify your email.", {
-        id: loadingToast,
-        duration: 4000 
-      });
-      
+      toast.success(
+        message || "Registration successful! Please verify your email.",
+        {
+          id: loadingToast,
+          duration: 4000,
+        }
+      );
+
       // Store registered email and switch to verification step
       setRegisteredEmail(userData.emailAddress);
-      setRegistrationStep('verification');
-      
+      setRegistrationStep("verification");
+
       // Clear form
       setUserData({
         fullName: "",
@@ -123,10 +140,9 @@ function UserRegister() {
         passwordConfirm: "",
       });
       setValidationErrors({});
-      
-    } catch  {
-      toast.error("An unexpected error occurred. Please try again.", { 
-        id: loadingToast 
+    } catch {
+      toast.error("An unexpected error occurred. Please try again.", {
+        id: loadingToast,
       });
     } finally {
       setIsSubmitting(false);
@@ -135,27 +151,26 @@ function UserRegister() {
 
   const handleResendVerification = async () => {
     setResendingEmail(true);
-    
+
     const loadingToast = toast.loading("Resending verification email...");
-    
+
     try {
       const { error, message } = await sendVerificationEmail();
-      
+
       if (error) {
         toast.error("Failed to resend verification email. Please try again.", {
-          id: loadingToast
+          id: loadingToast,
         });
         return;
       }
-      
+
       toast.success(message || "Verification email resent successfully!", {
         id: loadingToast,
-        duration: 4000
+        duration: 4000,
       });
-      
     } catch {
       toast.error("An unexpected error occurred. Please try again.", {
-        id: loadingToast
+        id: loadingToast,
       });
     } finally {
       setResendingEmail(false);
@@ -164,10 +179,10 @@ function UserRegister() {
 
   const handleGoogleAuthentication = async () => {
     setGoogleAuthLoading(true);
-    
+
     // Show loading toast
     const loadingToast = toast.loading("Connecting with Google...");
-    
+
     try {
       // Firebase Google sign-in
       const { user, error } = await googleLogin();
@@ -177,25 +192,30 @@ function UserRegister() {
         if (error.code === "auth/popup-closed-by-user") {
           errorMessage = "Sign-in was cancelled. Please try again.";
         } else if (error.code === "auth/popup-blocked") {
-          errorMessage = "Popup was blocked. Please allow popups and try again.";
+          errorMessage =
+            "Popup was blocked. Please allow popups and try again.";
         }
-        
+
         toast.error(errorMessage, { id: loadingToast });
         return;
       }
 
       // Handle success - Google accounts are automatically verified
-      toast.success(`Google authentication successful! Welcome ${user.displayName || "User"} to NewsHub!`, {
-        id: loadingToast,
-        duration: 4000 
-      });
-      
+      toast.success(
+        `Google authentication successful! Welcome ${
+          user.displayName || "User"
+        } to NewsHub!`,
+        {
+          id: loadingToast,
+          duration: 4000,
+        }
+      );
+
       // Navigate to dashboard
-      navigate('/dashboard');
-      
+      navigate("/dashboard");
     } catch {
       toast.error("An unexpected error occurred. Please try again.", {
-        id: loadingToast
+        id: loadingToast,
       });
     } finally {
       setGoogleAuthLoading(false);
@@ -208,7 +228,7 @@ function UserRegister() {
       {/* Decorative Elements */}
       <div className="absolute -top-12 -right-12 w-44 h-44 bg-gradient-to-br from-green-100 to-emerald-200 rounded-full opacity-60 blur-sm"></div>
       <div className="absolute -top-8 -left-8 w-32 h-32 bg-gradient-to-br from-blue-100 to-green-200 rounded-full opacity-50 blur-sm"></div>
-      
+
       {/* Header */}
       <div className="text-center relative z-10">
         <div className="mx-auto w-16 h-16 bg-gradient-to-r from-green-600 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
@@ -241,7 +261,9 @@ function UserRegister() {
               <div className="flex items-center">
                 <AlertCircle className="w-5 h-5 text-amber-600 mr-2 flex-shrink-0" />
                 <p className="text-sm text-amber-800 font-medium">
-                  <span className="font-semibold">Important:</span> Please check your spam/junk folder if you don't see the email in your inbox.
+                  <span className="font-semibold">Important:</span> Please check
+                  your spam/junk folder if you don't see the email in your
+                  inbox.
                 </p>
               </div>
             </div>
@@ -268,9 +290,9 @@ function UserRegister() {
               "Resend Verification Email"
             )}
           </button>
-          
+
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate("/login")}
             className="w-full py-3 px-4 border-2 border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all duration-200"
           >
             Go to Login Page
@@ -281,7 +303,7 @@ function UserRegister() {
         <p className="text-center text-gray-600 text-sm mt-6">
           Wrong email address?{" "}
           <button
-            onClick={() => setRegistrationStep('form')}
+            onClick={() => setRegistrationStep("form")}
             className="font-semibold text-green-600 hover:text-green-800 transition-colors duration-200"
           >
             Register again
@@ -363,10 +385,7 @@ function UserRegister() {
       </div>
 
       {/* Registration Form */}
-      <form
-        onSubmit={handleFormSubmission}
-        className="space-y-5 relative z-10"
-      >
+      <form onSubmit={handleFormSubmission} className="space-y-5 relative z-10">
         {/* Full Name Field */}
         <div>
           <label
@@ -536,7 +555,9 @@ function UserRegister() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
-        {registrationStep === 'verification' ? renderVerificationStep() : renderRegistrationForm()}
+        {registrationStep === "verification"
+          ? renderVerificationStep()
+          : renderRegistrationForm()}
       </div>
     </div>
   );
