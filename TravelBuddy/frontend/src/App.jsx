@@ -1,8 +1,19 @@
 
+import { Route, Routes } from 'react-router-dom';
+import Home from './Pages/Home';
+import UserRegister from './Pages/Users/UserRegister';
+import UserLogin from './Pages/Users/UserLogin';
+import ForgotPassword from './Pages/Users/ForgotPassword';
 
 function App() {
   return (
-    <h1 className="text-3xl font-bold underline bg-red-500">ffvo</h1>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/user/register" element={<UserRegister />} />
+      <Route path="/user/login" element={<UserLogin />} />
+      <Route path="/user/forgot-password" element={<ForgotPassword />} />
+      {/* Add more routes as needed */}
+    </Routes>
   )
   
 }

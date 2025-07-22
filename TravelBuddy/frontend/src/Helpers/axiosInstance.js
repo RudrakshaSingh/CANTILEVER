@@ -1,0 +1,12 @@
+import axios from "axios";
+
+const BASE_URL = "http://localhost:3000";
+
+
+const axiosInstance = axios.create();
+
+axiosInstance.defaults.baseURL = BASE_URL;
+axiosInstance.defaults.withCredentials = true;
+//you can google axios instance defaults
+
+export default axiosInstance;
