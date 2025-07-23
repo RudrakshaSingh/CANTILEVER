@@ -4,14 +4,11 @@ import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
 
 export const registerUser = asyncHandler(async (req, res) => {
-  try {
     const { fullName, email, firebaseUid } = req.body;
-    console.log("ddd");
 
     if (!fullName || !email || !firebaseUid) {
       throw new ApiError(400, "All fields are required");
     }
-    console.log("Registering user:", { fullName, email, firebaseUid });
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       throw new ApiError(
@@ -25,16 +22,33 @@ export const registerUser = asyncHandler(async (req, res) => {
     res
       .status(201)
       .json(new ApiResponse(201, user, "User registered successfully"));
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Internal Server Error in registerUser"
-    );
-  }
+  
 });
 
 export const getUserByFirebaseUid = asyncHandler(async (req, res) => {
-  try {
+
+    const { firebaseUid, fullName, email } = req.body;
+
+    if (!firebaseUid) {
+      throw new ApiError(400, "Firebase UID is required");
+    }
+
+    let user = await User.findOne({ firebaseUid });
+    if (!user) {
+      // Create user if not found
+      if (!fullName || !email) {
+        throw new ApiError(400, "fullName and email are required to register new user");
+      }
+      user = await User.create({ fullName, email, firebaseUid });
+      return res.status(201).json(new ApiResponse(201, user, "User registered successfully"));
+    }
+
+    res.status(200).json(new ApiResponse(200, user, "User found successfully"));
+ 
+});
+
+export const getProfile= asyncHandler(async (req, res) => {
+  
     const { firebaseUid } = req.body;
 
     if (!firebaseUid) {
@@ -43,18 +57,9 @@ export const getUserByFirebaseUid = asyncHandler(async (req, res) => {
 
     const user = await User.findOne({ firebaseUid });
     if (!user) {
-      const newUser = await registerUser(req, res);
-      res
-        .status(200)
-        .json(new ApiResponse(200, user, "User found successfully"));
-      return;
+      throw new ApiError(404, "User not found");
     }
 
     res.status(200).json(new ApiResponse(200, user, "User found successfully"));
-  } catch (error) {
-    throw new ApiError(
-      error.statusCode || 500,
-      error.message || "Internal Server Error in getUserByFirebaseUid"
-    );
-  }
+  
 });

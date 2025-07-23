@@ -11,7 +11,6 @@ import {
   confirmPasswordResetWithCode,
   logout,
   refreshUser,
-  getUser,
   updateUserProfile,
 } from "../../Helpers/firebaseConfig";
 import axiosInstance from "../../Helpers/axiosInstance";
@@ -27,7 +26,7 @@ const initialState = {
 
 // Register with Email and Password
 export const registerUser = createAsyncThunk(
-  "auth/registerUser",
+  "user/registerUser",
   async ({ email, password, fullName }, { rejectWithValue }) => {
     try {
       const { user, error, message } = await registerWithEmailPass(
@@ -70,7 +69,7 @@ export const registerUser = createAsyncThunk(
 
 // Login with Email and Password
 export const loginUser = createAsyncThunk(
-  "auth/loginUser",
+  "user/loginUser",
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const { user, error, needsVerification } = await loginWithEmailPass(
@@ -113,13 +112,16 @@ export const loginUser = createAsyncThunk(
           firebaseUid: user.uid,
         });
 
-        console.log("Backend login response:", backendResponse.data);
         backendData = backendResponse.data.data; // Extract the data from the response
-      } catch (backendError) {
-        console.error("Backend login failed:", backendError);
-        toast.warning(
-          "Login successful, but there was an issue syncing with our servers."
+      } catch (error) {
+        toast.error(
+          error.response.data.message ||
+            "Failed to sync with backend. Please try again later."
         );
+        return rejectWithValue({
+          message:
+            error.response.data.message || "Failed to sync with backend.",
+        });
       }
 
       toast.success(
@@ -144,7 +146,7 @@ export const loginUser = createAsyncThunk(
 
 // Google Login
 export const googleSignIn = createAsyncThunk(
-  "auth/googleSignIn",
+  "user/googleSignIn",
   async (_, { rejectWithValue }) => {
     try {
       const { user, error } = await googleLogin();
@@ -176,11 +178,15 @@ export const googleSignIn = createAsyncThunk(
 
         console.log("Backend Google login response:", backendResponse.data);
         backendData = backendResponse.data.data; // Extract the data from the response
-      } catch (backendError) {
-        console.error("Backend Google login failed:", backendError);
-        toast.warning(
-          "Google sign-in successful, but there was an issue syncing with our servers."
+      } catch (error) {
+        toast.error(
+          error.response.data.message ||
+            "Failed to sync with backend. Please try again later."
         );
+        return rejectWithValue({
+          message:
+            error.response.data.message || "Failed to sync with backend.",
+        });
       }
 
       toast.success(
@@ -206,7 +212,7 @@ export const googleSignIn = createAsyncThunk(
 
 // Send Verification Email
 export const sendVerificationEmailThunk = createAsyncThunk(
-  "auth/sendVerificationEmail",
+  "user/sendVerificationEmail",
   async (_, { rejectWithValue }) => {
     try {
       const { error, message } = await sendVerificationEmail();
@@ -233,7 +239,7 @@ export const sendVerificationEmailThunk = createAsyncThunk(
 
 // Verify Email with Action Code
 export const verifyEmailThunk = createAsyncThunk(
-  "auth/verifyEmail",
+  "user/verifyEmail",
   async ({ actionCode }, { rejectWithValue }) => {
     try {
       const { error, message } = await verifyEmail(actionCode);
@@ -266,7 +272,7 @@ export const verifyEmailThunk = createAsyncThunk(
 
 // Send Password Reset Email
 export const sendPasswordResetEmail = createAsyncThunk(
-  "auth/sendPasswordResetEmail",
+  "user/sendPasswordResetEmail",
   async ({ email }, { rejectWithValue }) => {
     try {
       const { error, message } = await sendPasswordResetEmailToUser(email);
@@ -302,7 +308,7 @@ export const sendPasswordResetEmail = createAsyncThunk(
 
 // Verify Password Reset Code
 export const verifyPasswordResetCode = createAsyncThunk(
-  "auth/verifyPasswordResetCode",
+  "user/verifyPasswordResetCode",
   async ({ actionCode }, { rejectWithValue }) => {
     try {
       const { email, error, message } = await checkPasswordResetCode(
@@ -332,7 +338,7 @@ export const verifyPasswordResetCode = createAsyncThunk(
 
 // Reset Password with New Password
 export const resetPassword = createAsyncThunk(
-  "auth/resetPassword",
+  "user/resetPassword",
   async ({ actionCode, newPassword }, { rejectWithValue }) => {
     try {
       const { error, message } = await confirmPasswordResetWithCode(
@@ -371,7 +377,7 @@ export const resetPassword = createAsyncThunk(
 
 // Logout User
 export const logoutUser = createAsyncThunk(
-  "auth/logoutUser",
+  "user/logoutUser",
   async (_, { rejectWithValue }) => {
     try {
       const { error } = await logout();
@@ -395,27 +401,116 @@ export const logoutUser = createAsyncThunk(
   }
 );
 
-// Refresh User Data
-export const refreshUserData = createAsyncThunk(
-  "auth/refreshUserData",
-  async (_, { rejectWithValue }) => {
-    try {
-      const { user, error } = await refreshUser();
+// Helper function to handle authentication redirects
+const redirectToLogin = () => {
+  // Only redirect to login page - no localStorage clearing
+  window.location.href = "/user/login";
+};
 
-      if (error) {
-        return rejectWithValue({ message: "Failed to refresh user data" });
+// Refresh User Data - Modified version with auth error handling
+// Refresh User Data - Modified version with auth error handling and refreshUser fallback
+export const refreshUserData = createAsyncThunk(
+  "user/refreshUserData",
+  async (_, { rejectWithValue, dispatch, getState }) => {
+    try {
+      const { user: currentUser, accessToken } = getState().user;
+
+      // Call backend API with access token in header and firebaseUid in body
+      const backendResponse = await axiosInstance.post(
+        "/users/refresh-profile",
+        {
+          firebaseUid: currentUser?.firebaseUid,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      console.log("Backend profile refresh response:", backendResponse.data);
+
+      const backendData = backendResponse.data.data;
+      toast.success("User data refreshed successfully!", {
+        duration: 3000,
+      });
+      return {
+        user: backendData,
+      };
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+
+      // Check for specific authentication errors - ONLY these 2 messages
+      if (
+        errorMessage === "Invalid token" ||
+        errorMessage === "No token provided"
+      ) {
+        // First, try to refresh the Firebase user
+        try {
+          const { user: refreshedUser, error: refreshError } =
+            await refreshUser();
+
+          if (!refreshError && refreshedUser) {
+            // Get new Firebase access token
+            const newAccessToken = await refreshedUser.getIdToken();
+
+            // Show toast to try again (don't retry automatically)
+            toast.error("Session token refreshed. Please try again.");
+
+            return rejectWithValue({
+              message: "Session token refreshed. Please try again.",
+              accessToken: newAccessToken,
+            });
+          } else {
+            // refreshUser failed, show error and redirect
+            toast.error("Session expired. Please login again.");
+
+            // Clear Redux user state immediately
+            dispatch(clearUser());
+
+            // Redirect to login page after a short delay
+            setTimeout(() => {
+              redirectToLogin();
+            }, 1000);
+
+            return rejectWithValue({
+              message: "Session expired. Please login again.",
+              isAuthError: true,
+            });
+          }
+        } catch {
+          // Exception during refreshUser, show error and redirect
+          toast.error("Session expired. Please login again.");
+
+          // Clear Redux user state immediately
+          dispatch(clearUser());
+
+          // Redirect to login page after a short delay
+          setTimeout(() => {
+            redirectToLogin();
+          }, 1000);
+
+          return rejectWithValue({
+            message: "Session expired. Please login again.",
+            isAuthError: true,
+          });
+        }
       }
 
-      return { user };
-    } catch {
-      return rejectWithValue({ message: "An unexpected error occurred" });
+      // Handle other errors normally
+      toast.error(
+        errorMessage || "Failed to sync with backend. Please try again later."
+      );
+      return rejectWithValue({
+        message: errorMessage || "An unexpected error occurred",
+      });
     }
   }
 );
 
 // Update User Profile
 export const updateProfile = createAsyncThunk(
-  "auth/updateProfile",
+  "user/updateProfile",
   async ({ updates }, { rejectWithValue }) => {
     try {
       const { error } = await updateUserProfile(updates);
@@ -426,11 +521,30 @@ export const updateProfile = createAsyncThunk(
         return rejectWithValue({ message: errorMessage });
       }
 
-      toast.success("Profile updated successfully!", {
-        duration: 3000,
-      });
+      // Call backend API to update profile
+      try {
+        const backendResponse = await axiosInstance.put(
+          "/users/profile",
+          updates
+        );
+        const backendData = backendResponse.data.data;
 
-      return { user: getUser() };
+        toast.success("Profile updated successfully!", {
+          duration: 3000,
+        });
+
+        return { user: backendData };
+      } catch (error) {
+        toast.error(
+          error.response.data.message ||
+            "Failed to sync profile update with backend. Please try again later."
+        );
+        return rejectWithValue({
+          message:
+            error.response.data.message ||
+            "Failed to sync profile update with backend.",
+        });
+      }
     } catch {
       const errorMessage = "An unexpected error occurred. Please try again.";
       toast.error(errorMessage);
@@ -612,10 +726,23 @@ const userSlice = createSlice({
         if (action.payload.user) {
           state.user = action.payload.user;
         }
+        if (action.payload.accessToken) {
+          state.accessToken = action.payload.accessToken;
+        }
       })
       .addCase(refreshUserData.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload.message;
+
+        // Only clear Redux state if isAuthError is true (only for "Invalid token" or "No token provided")
+        if (action.payload?.isAuthError === true) {
+          // Clear Redux state only - no localStorage
+          state.user = null;
+          state.accessToken = null;
+          state.error = null; // Clear error since we're redirecting
+        } else {
+          // For all other errors, just set the error message
+          state.error = action.payload?.message || "An error occurred";
+        }
       })
 
       // Update Profile

@@ -1,9 +1,30 @@
 import React, { useState } from 'react';
 import { MapPin, Users, Calendar, MessageCircle, Search, Star, ArrowRight, Globe, Camera, Coffee, Mountain, Utensils } from 'lucide-react';
+import { useDispatch } from 'react-redux';
+import { refreshUserData } from '../Redux/Slices/UserSlice';
+import { useNavigate } from 'react-router-dom';
 
 function Home() {
   const [activeTab, setActiveTab] = useState('discover');
   const [searchQuery, setSearchQuery] = useState('');
+  const navigate = useNavigate();
+
+  // Redux state and dispatch
+  const dispatch = useDispatch();
+
+  const handleStartExploring = async () => {
+    try {
+      console.log('Starting exploration with search query:');
+      
+      // Dispatch an action to send verification email
+      await dispatch(refreshUserData()).unwrap();
+
+      // Navigate to the login page
+      // navigate('/login');
+    } catch (error) {
+      console.error('Error sending verification email:', error);
+    }
+  };
 
   // Mock data for demonstrations
   const featuredTravelers = [
@@ -173,7 +194,7 @@ function Home() {
             />
           </div>
           
-          <button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-xl">
+          <button onClick={handleStartExploring} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-xl">
             Start Exploring
             <ArrowRight className="inline-block ml-2 w-5 h-5" />
           </button>

@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema(
     },
 
     fullName: {
-      type: String,
+      type: String, 
       trim: true,
       maxlength: 50,
     },role: {
