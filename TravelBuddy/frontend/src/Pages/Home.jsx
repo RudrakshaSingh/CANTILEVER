@@ -13,17 +13,7 @@ function Home() {
   const dispatch = useDispatch();
 
   const handleStartExploring = async () => {
-    try {
-      console.log('Starting exploration with search query:');
-      
-      // Dispatch an action to send verification email
-      await dispatch(refreshUserData()).unwrap();
-
-      // Navigate to the login page
-      // navigate('/login');
-    } catch (error) {
-      console.error('Error sending verification email:', error);
-    }
+   
   };
 
   // Mock data for demonstrations

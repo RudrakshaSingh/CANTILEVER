@@ -403,11 +403,9 @@ export const logoutUser = createAsyncThunk(
 
 // Helper function to handle authentication redirects
 const redirectToLogin = () => {
-  // Only redirect to login page - no localStorage clearing
   window.location.href = "/user/login";
 };
 
-// Refresh User Data - Modified version with auth error handling
 // Refresh User Data - Modified version with auth error handling and refreshUser fallback
 export const refreshUserData = createAsyncThunk(
   "user/refreshUserData",

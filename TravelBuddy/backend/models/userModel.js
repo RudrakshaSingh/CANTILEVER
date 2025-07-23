@@ -18,18 +18,18 @@ const userSchema = new mongoose.Schema(
     },
 
     fullName: {
-      type: String, 
+      type: String,
       trim: true,
       maxlength: 50,
-    },role: {
+    },
+    role: {
       type: String,
       enum: ["user", "admin"],
       default: "user",
     },
-    mobileNumber: {
+    mobile: {
       type: String,
       trim: true,
-      maxlength: 15,
     },
 
     // Profile Details
@@ -67,10 +67,10 @@ const userSchema = new mongoose.Schema(
       },
     ],
     currentLocation: {
-      latitude: {
+      lat: {
         type: Number,
       },
-      longitude: {
+      lng: {
         type: Number,
       },
     },
@@ -90,8 +90,8 @@ const userSchema = new mongoose.Schema(
       {
         destination: String,
         plannedDate: Date,
-        latitude: Number,
-        longitude: Number,
+        lat: Number,
+        lng: Number,
       },
     ],
   },
