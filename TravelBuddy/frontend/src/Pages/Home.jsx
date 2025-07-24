@@ -1,16 +1,10 @@
 import React, { useState } from 'react';
 import { MapPin, Users, Calendar, MessageCircle, Search, Star, ArrowRight, Globe, Camera, Coffee, Mountain, Utensils } from 'lucide-react';
-import { useDispatch } from 'react-redux';
-import { refreshUserData } from '../Redux/Slices/UserSlice';
-import { useNavigate } from 'react-router-dom';
+
 
 function Home() {
   const [activeTab, setActiveTab] = useState('discover');
   const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
-
-  // Redux state and dispatch
-  const dispatch = useDispatch();
 
   const handleStartExploring = async () => {
    
