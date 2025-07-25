@@ -150,7 +150,7 @@ export const googleSignIn = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const { user, error } = await googleLogin();
-
+      
       if (error) {
         let errorMessage = "Google sign-in failed. Please try again.";
         if (error.code === "auth/popup-closed-by-user") {

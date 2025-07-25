@@ -30,6 +30,7 @@ const userSchema = new mongoose.Schema(
     mobile: {
       type: String,
       trim: true,
+      default: "------------",
     },
 
     // Profile Details
@@ -43,6 +44,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       maxlength: 500,
       trim: true,
+      default: "No bio yet",
     },
 
     dateOfBirth: Date,
@@ -51,6 +53,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       enum: ["male", "female", "non-binary", "prefer-not-to-say"],
       lowercase: true,
+      default: "prefer-not-to-say",
     },
 
     // Languages
@@ -58,11 +61,11 @@ const userSchema = new mongoose.Schema(
       {
         language: {
           type: String,
+          trim: true,
         },
         proficiency: {
           type: String,
           enum: ["beginner", "intermediate", "advanced", "native"],
-          default: "intermediate",
         },
       },
     ],
@@ -92,6 +95,7 @@ const userSchema = new mongoose.Schema(
         plannedDate: Date,
         lat: Number,
         lng: Number,
+
       },
     ],
   },

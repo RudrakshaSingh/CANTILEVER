@@ -4,6 +4,8 @@ import UserRegister from "./Pages/Users/UserRegister";
 import UserLogin from "./Pages/Users/UserLogin";
 import ForgotPassword from "./Pages/Users/ForgotPassword";
 import HomeLayout from "./components/HomeLayout";
+import ProtectedRoute from "./Helpers/ProtectedRoute";
+import UserProfile from "./Pages/Users/UserProfile";
 
 function App() {
   return (
@@ -13,6 +15,10 @@ function App() {
         <Route path="/user/register" element={<UserRegister />} />
         <Route path="/user/login" element={<UserLogin />} />
         <Route path="/user/forgot-password" element={<ForgotPassword />} />
+
+        <Route element={<ProtectedRoute allowedRoles={["user","admin"]} />}>
+          <Route path="/user/profile" element={<UserProfile />} />
+        </Route>
       </Route>
       {/* Add more routes as needed */}
     </Routes>
