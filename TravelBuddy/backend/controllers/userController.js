@@ -2,70 +2,82 @@ import asyncHandler from "../utils/AsyncHandler.js";
 import User from "../models/userModel.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
+import deleteFromCloudinaryByUrl from "../utils/deleteCloudinary.js";
+import uploadOnCloudinary from "../utils/Cloudinary.js";
 
 export const registerUser = asyncHandler(async (req, res) => {
-    const { fullName, email, firebaseUid } = req.body;
+  const { fullName, email, firebaseUid } = req.body;
 
-    if (!fullName || !email || !firebaseUid) {
-      throw new ApiError(400, "All fields are required");
-    }
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      throw new ApiError(
-        400,
-        "User already exists with this firebaseUid or email"
-      );
-    }
+  if (!fullName || !email || !firebaseUid) {
+    throw new ApiError(400, "All fields are required");
+  }
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw new ApiError(
+      400,
+      "User already exists with this firebaseUid or email"
+    );
+  }
 
-    const user = await User.create({ fullName, email, firebaseUid });
+  const user = await User.create({ fullName, email, firebaseUid });
 
-    res
-      .status(201)
-      .json(new ApiResponse(201, user, "User registered successfully"));
-  
+  res
+    .status(201)
+    .json(new ApiResponse(201, user, "User registered successfully"));
 });
 
 export const getUserByFirebaseUid = asyncHandler(async (req, res) => {
+  const { firebaseUid, fullName, email } = req.body;
 
-    const { firebaseUid, fullName, email } = req.body;
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
 
-    if (!firebaseUid) {
-      throw new ApiError(400, "Firebase UID is required");
+  let user = await User.findOne({ firebaseUid });
+  if (!user) {
+    // Create user if not found
+    if (!fullName || !email) {
+      throw new ApiError(
+        400,
+        "fullName and email are required to register new user"
+      );
     }
+    user = await User.create({ fullName, email, firebaseUid });
+    return res
+      .status(201)
+      .json(new ApiResponse(201, user, "User registered successfully"));
+  }
 
-    let user = await User.findOne({ firebaseUid });
-    if (!user) {
-      // Create user if not found
-      if (!fullName || !email) {
-        throw new ApiError(400, "fullName and email are required to register new user");
-      }
-      user = await User.create({ fullName, email, firebaseUid });
-      return res.status(201).json(new ApiResponse(201, user, "User registered successfully"));
-    }
-
-    res.status(200).json(new ApiResponse(200, user, "User found successfully"));
- 
+  res.status(200).json(new ApiResponse(200, user, "User found successfully"));
 });
 
-export const getProfile= asyncHandler(async (req, res) => {
-  
-    const { firebaseUid } = req.body;
+export const getProfile = asyncHandler(async (req, res) => {
+  const { firebaseUid } = req.body;
 
-    if (!firebaseUid) {
-      throw new ApiError(400, "Firebase UID is required");
-    }
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
 
-    const user = await User.findOne({ firebaseUid });
-    if (!user) {
-      throw new ApiError(404, "User not found");
-    }
+  const user = await User.findOne({ firebaseUid });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
 
-    res.status(200).json(new ApiResponse(200, user, "User found successfully"));
-  
+  res.status(200).json(new ApiResponse(200, user, "User found successfully"));
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
-  const { firebaseUid, fullName, mobile, bio, dateOfBirth, gender, languages, socialLinks, futureDestinations } = req.body;
+  const {
+    firebaseUid,
+    fullName,
+    mobile,
+    bio,
+    dateOfBirth,
+    gender,
+    languages,
+    socialLinks,
+    futureDestinations,
+  } = req.body;
 
   if (!firebaseUid) {
     throw new ApiError(400, "Firebase UID is required");
@@ -81,38 +93,68 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   if (ProfilePictureLocalPath) {
     // Check if current profile image is not the default URL
-    if (user.profileImage && user.profileImage !== process.env.DEFAULT_PROFILE_IMAGE_URL) {
+
+    if (
+      user.profilePicture &&
+      user.profilePicture !== process.env.DEFAULT_PROFILE_IMAGE_URL
+    ) {
       try {
+
         // Delete existing image from Cloudinary
-        const deleteResult = await deleteFromCloudinaryByUrl(user.profileImage);
-        if (deleteResult.success) {
-          console.log('Previous profile image deleted successfully');
-        } else {
-          console.log('Failed to delete previous image:', deleteResult.error);
+        const deleteResult = await deleteFromCloudinaryByUrl(
+          user.profilePicture
+        );
+        if (!deleteResult.success) {
+          throw new ApiError(400, "Error deleting previous profile image");
+          return;
         }
       } catch (error) {
-        console.error('Error deleting previous profile image:', error);
-        // Continue with upload even if delete fails
+        // console.error('Error deleting previous profile image:', error);
+        throw new ApiError(400, "Error deleting previous profile image");
       }
     }
 
     // Upload new profile image to Cloudinary
+
     const profileImage = await uploadOnCloudinary(ProfilePictureLocalPath);
     if (!profileImage) {
       throw new ApiError(400, "Error uploading profile picture");
     }
-    user.profileImage = profileImage.url;
+    user.profilePicture = profileImage.url;
   }
 
-  // Update user fields (profile image only updated if new file was provided)
-  user.fullName = fullName;
-  user.mobile = mobile;
-  user.bio = bio;
-  user.dateOfBirth = dateOfBirth;
-  user.gender = gender;
-  user.languages = languages;
-  user.socialLinks = socialLinks;
-  user.futureDestinations = futureDestinations;
+  // Update user fields only if they are provided
+  if (fullName !== undefined) {
+    user.fullName = fullName;
+  }
+
+  if (mobile !== undefined) {
+    user.mobile = mobile;
+  }
+
+  if (bio !== undefined) {
+    user.bio = bio;
+  }
+
+  if (dateOfBirth !== undefined) {
+    user.dateOfBirth = dateOfBirth;
+  }
+
+  if (gender !== undefined) {
+    user.gender = gender;
+  }
+
+  if (languages !== undefined) {
+    user.languages = languages;
+  }
+
+  if (socialLinks !== undefined) {
+    user.socialLinks = socialLinks;
+  }
+
+  if (futureDestinations !== undefined) {
+    user.futureDestinations = futureDestinations;
+  }
 
   await user.save();
   res.status(200).json(new ApiResponse(200, user, "User updated successfully"));

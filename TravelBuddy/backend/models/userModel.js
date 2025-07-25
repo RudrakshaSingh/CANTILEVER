@@ -36,8 +36,7 @@ const userSchema = new mongoose.Schema(
     // Profile Details
     profilePicture: {
       type: String,
-      default:
-        "https://media.istockphoto.com/id/1130884625/vector/user-member-vector-icon-for-ui-user-interface-or-profile-face-avatar-app-in-circle-design.jpg?s=612x612&w=0&k=20&c=1ky-gNHiS2iyLsUPQkxAtPBWH1BZt0PKBB1WBtxQJRE=",
+      default: process.env.DEFAULT_PROFILE_IMAGE_URL,
     },
 
     bio: {
@@ -95,7 +94,6 @@ const userSchema = new mongoose.Schema(
         plannedDate: Date,
         lat: Number,
         lng: Number,
-
       },
     ],
   },

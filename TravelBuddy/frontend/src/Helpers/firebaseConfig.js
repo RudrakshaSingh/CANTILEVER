@@ -180,8 +180,17 @@ export const isEmailVerified = () => {
 export const refreshUser = async () => {
   try {
     if (auth.currentUser) {
+      // Reload user profile data
       await reload(auth.currentUser);
-      return { user: auth.currentUser, error: null };
+      
+      // Force refresh the access token
+      const newAccessToken = await auth.currentUser.getIdToken(true);
+      
+      return { 
+        user: auth.currentUser, 
+        accessToken: newAccessToken,
+        error: null 
+      };
     }
     return { user: null, error: new Error("No authenticated user") };
   } catch (error) {

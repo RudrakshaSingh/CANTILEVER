@@ -150,7 +150,7 @@ export const googleSignIn = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const { user, error } = await googleLogin();
-      
+
       if (error) {
         let errorMessage = "Google sign-in failed. Please try again.";
         if (error.code === "auth/popup-closed-by-user") {
@@ -445,12 +445,15 @@ export const refreshUserData = createAsyncThunk(
       ) {
         // First, try to refresh the Firebase user
         try {
-          const { user: refreshedUser, error: refreshError } =
-            await refreshUser();
+          const {
+            user: refreshedUser,
+            accessToken: newAccessToken,
+            error: refreshError,
+          } = await refreshUser();
 
-          if (!refreshError && refreshedUser) {
-            // Get new Firebase access token
-            const newAccessToken = await refreshedUser.getIdToken();
+          if (!refreshError && refreshedUser && newAccessToken) {
+            // Update the Redux state with new access token
+            dispatch(setAccessToken(newAccessToken));
 
             // Show toast to try again (don't retry automatically)
             toast.error("Session token refreshed. Please try again.");
@@ -561,6 +564,9 @@ const userSlice = createSlice({
       state.user = action.payload;
       state.loading = false;
       state.error = null;
+    },
+    setAccessToken: (state, action) => {
+      state.accessToken = action.payload;
     },
     clearUser: (state) => {
       state.user = null;
@@ -761,7 +767,7 @@ const userSlice = createSlice({
 });
 
 // Export actions
-export const { setUser, clearUser, setLoading, setError, clearError } =
+export const { setUser, clearUser, setLoading, setError, clearError, setAccessToken } =
   userSlice.actions;
 
 // Export reducer
