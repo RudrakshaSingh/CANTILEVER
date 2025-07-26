@@ -24,16 +24,14 @@ const uploadOnCloudinary = async (localFilePath) => {
       crop: "fill",
     });
 
-    // File has been uploaded successfully
-    console.log("File is uploaded on Cloudinary", response.url);
 
     // Remove the locally saved temporary file using fs.rm
     await fs.rm(localFilePath);
-    console.log("Local file removed:", localFilePath);
 
     return response;
   } catch (error) {
     console.error("Error uploading file:", error);
+    
 
     // Attempt to remove the locally saved temporary file
     try {

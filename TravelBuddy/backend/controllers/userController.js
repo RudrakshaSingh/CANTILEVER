@@ -79,6 +79,16 @@ export const updateUser = asyncHandler(async (req, res) => {
     futureDestinations,
   } = req.body;
 
+  console.log("firebaseUid", firebaseUid);
+  console.log("fullName", fullName);
+  console.log("mobile", mobile);
+  console.log("bio", bio);
+  console.log("dateOfBirth", dateOfBirth);
+  console.log("gender", gender);
+  console.log("languages", languages);
+  console.log("socialLinks", socialLinks);
+  console.log("futureDestinations", futureDestinations);
+
   if (!firebaseUid) {
     throw new ApiError(400, "Firebase UID is required");
   }
@@ -93,13 +103,11 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   if (ProfilePictureLocalPath) {
     // Check if current profile image is not the default URL
-
     if (
       user.profilePicture &&
       user.profilePicture !== process.env.DEFAULT_PROFILE_IMAGE_URL
     ) {
       try {
-
         // Delete existing image from Cloudinary
         const deleteResult = await deleteFromCloudinaryByUrl(
           user.profilePicture
@@ -115,7 +123,6 @@ export const updateUser = asyncHandler(async (req, res) => {
     }
 
     // Upload new profile image to Cloudinary
-
     const profileImage = await uploadOnCloudinary(ProfilePictureLocalPath);
     if (!profileImage) {
       throw new ApiError(400, "Error uploading profile picture");
@@ -145,15 +152,30 @@ export const updateUser = asyncHandler(async (req, res) => {
   }
 
   if (languages !== undefined) {
-    user.languages = languages;
+    try {
+      // Parse languages if it's a string, otherwise use as-is
+      user.languages = typeof languages === 'string' ? JSON.parse(languages) : languages;
+    } catch (error) {
+      throw new ApiError(400, "Invalid languages format");
+    }
   }
 
   if (socialLinks !== undefined) {
-    user.socialLinks = socialLinks;
+    try {
+      // Parse socialLinks if it's a string, otherwise use as-is
+      user.socialLinks = typeof socialLinks === 'string' ? JSON.parse(socialLinks) : socialLinks;
+    } catch (error) {
+      throw new ApiError(400, "Invalid socialLinks format");
+    }
   }
 
   if (futureDestinations !== undefined) {
-    user.futureDestinations = futureDestinations;
+    try {
+      // Parse futureDestinations if it's a string, otherwise use as-is
+      user.futureDestinations = typeof futureDestinations === 'string' ? JSON.parse(futureDestinations) : futureDestinations;
+    } catch (error) {
+      throw new ApiError(400, "Invalid futureDestinations format");
+    }
   }
 
   await user.save();
@@ -162,7 +184,6 @@ export const updateUser = asyncHandler(async (req, res) => {
 
 export const deleteUser = asyncHandler(async (req, res) => {
   const { firebaseUid } = req.body;
-  console.log("hi");
   
 
   if (!firebaseUid) {

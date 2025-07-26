@@ -17,7 +17,6 @@ const authMiddleware = async (req, res, next) => {
   try {
     // Get token from header
     const token = req.headers.authorization?.split(" ")[1];
-    console.log("uyjuyj", token);
 
     if (!token) {
       throw new ApiError(401, "No token provided");
@@ -28,12 +27,10 @@ const authMiddleware = async (req, res, next) => {
     const userRecord = await admin.auth().getUser(decodedToken.uid);
 
     // Check if email is verified
-    console.log("h1");
     
     if (!userRecord.emailVerified) {
       throw new ApiError(403, "Please verify your email first");
     }
-    console.log("h2");
 
     // Add user info to request
     req.user = {

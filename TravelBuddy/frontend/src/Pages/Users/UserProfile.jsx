@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { deleteUserAccount } from "../../Redux/Slices/UserSlice";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
+import EditProfileModal from "../../components/EditProfileModal ";
 
 function UserProfile() {
   // Get user from Redux store
@@ -34,9 +35,14 @@ function UserProfile() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const handleDeleteAccount = () => {
     setIsDeleteModalOpen(true);
+  };
+
+  const handleEditProfile = () => {
+    setIsEditProfileOpen(true);
   };
 
   const confirmDeleteAccount = async () => {
@@ -177,7 +183,10 @@ function UserProfile() {
                       </span>
                     </div>
                   </div>
-                  <button className="mt-4 md:mt-0 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 flex items-center">
+                  <button 
+                    onClick={handleEditProfile}
+                    className="mt-4 md:mt-0 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 flex items-center"
+                  >
                     <Edit3 className="w-4 h-4 mr-2" />
                     Edit Profile
                   </button>
@@ -681,6 +690,13 @@ function UserProfile() {
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDeleteAccount}
         isDeleting={isDeleting}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isEditProfileOpen}
+        onClose={() => setIsEditProfileOpen(false)}
+        user={user}
       />
     </div>
   );

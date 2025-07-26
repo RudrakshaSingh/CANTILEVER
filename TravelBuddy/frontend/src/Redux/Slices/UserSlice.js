@@ -131,7 +131,6 @@ export const loginUser = createAsyncThunk(
           duration: 3000,
         }
       );
-      console.log("User logged in:", user);
 
       return {
         accessToken,
@@ -177,7 +176,6 @@ export const googleSignIn = createAsyncThunk(
           firebaseUid: user.uid,
         });
 
-        console.log("Backend Google login response:", backendResponse.data);
         backendData = backendResponse.data.data; // Extract the data from the response
       } catch (error) {
         toast.error(
@@ -197,7 +195,6 @@ export const googleSignIn = createAsyncThunk(
         }
       );
 
-      console.log("User logged in with Google:", user);
 
       return {
         accessToken,
@@ -427,7 +424,6 @@ export const refreshUserData = createAsyncThunk(
         }
       );
 
-      console.log("Backend profile refresh response:", backendResponse.data);
 
       const backendData = backendResponse.data.data;
       toast.success("User data refreshed successfully!", {
@@ -572,7 +568,6 @@ export const deleteUserAccount = createAsyncThunk(
 
       // After successful Firebase deletion, call backend to clean up user data
       try {
-        console.log("Attempting backend cleanup...",currentUser.firebaseUid,"nii", accessToken);
         
         await axiosInstance.post(
           "/users/delete",
@@ -610,44 +605,212 @@ export const deleteUserAccount = createAsyncThunk(
 );
 
 // Update User Profile
+// Update User Profile - Complete version with full error handling and token management
 export const updateProfile = createAsyncThunk(
   "user/updateProfile",
-  async ({ updates }, { rejectWithValue }) => {
+  async ({ updates }, { rejectWithValue, getState, dispatch }) => {
     try {
-      const { error } = await updateUserProfile(updates);
+      const { user: currentUser, accessToken } = getState().user;
 
-      if (error) {
-        const errorMessage = "Failed to update profile. Please try again.";
+      if (!currentUser || !accessToken) {
+        const errorMessage = "No authenticated user found.";
         toast.error(errorMessage);
-        return rejectWithValue({ message: errorMessage });
+        return rejectWithValue({ message: errorMessage, isAuthError: true });
       }
 
-      // Call backend API to update profile
-      try {
-        const backendResponse = await axiosInstance.put(
-          "/users/profile",
-          updates
-        );
-        const backendData = backendResponse.data.data;
+      // Update Firebase profile first (for displayName)
+      if (updates.fullName && updates.fullName !== currentUser.fullName) {
+        try {
+          const { error: firebaseError } = await updateUserProfile({
+            displayName: updates.fullName
+          });
 
-        toast.success("Profile updated successfully!", {
-          duration: 3000,
-        });
+          if (firebaseError) {
+            let errorMessage = "Failed to update Firebase profile. Please try again.";
+            
+            if (firebaseError.code === "auth/requires-recent-login") {
+              errorMessage = "For security reasons, please log in again to update your profile.";
+            } else if (firebaseError.code === "auth/user-not-found") {
+              errorMessage = "User account not found. Please log in again.";
+            }
 
-        return { user: backendData };
-      } catch (error) {
-        toast.error(
-          error.response.data.message ||
-            "Failed to sync profile update with backend. Please try again later."
-        );
-        return rejectWithValue({
-          message:
-            error.response.data.message ||
-            "Failed to sync profile update with backend.",
-        });
+            toast.error(errorMessage);
+            return rejectWithValue({ 
+              message: errorMessage, 
+              code: firebaseError.code,
+              isAuthError: firebaseError.code === "auth/user-not-found"
+            });
+          }
+        } catch (firebaseErr) {
+          console.error('Firebase update error:', firebaseErr);
+          const errorMessage = "Failed to update Firebase profile. Please try again.";
+          toast.error(errorMessage);
+          return rejectWithValue({ message: errorMessage });
+        }
       }
-    } catch {
-      const errorMessage = "An unexpected error occurred. Please try again.";
+
+      // Prepare FormData for backend API call
+      const formData = new FormData();
+      
+      // Add firebaseUid first
+      formData.append('firebaseUid', currentUser.firebaseUid);
+      
+      // Add all fields to FormData
+      Object.keys(updates).forEach(key => {
+        const value = updates[key];
+        
+        if (key === 'profilePicture') {
+          // Handle file upload
+          if (value instanceof File) {
+            formData.append('profilePicture', value);
+          }
+        } else if (key === 'languages') {
+          // Handle languages array
+          if (Array.isArray(value)) {
+            formData.append('languages', JSON.stringify(value));
+          }
+        } else if (key === 'futureDestinations') {
+          // Handle future destinations array
+          if (Array.isArray(value)) {
+            formData.append('futureDestinations', JSON.stringify(value));
+          }
+        } else if (key === 'socialLinks') {
+          // Handle social links object
+          if (typeof value === 'object' && value !== null) {
+            formData.append('socialLinks', JSON.stringify(value));
+          }
+        } else if (key === 'dateOfBirth') {
+          // Handle date fields
+          if (value) {
+            formData.append('dateOfBirth', value);
+          }
+        } else if (value !== null && value !== undefined && value !== '') {
+          // Handle all other string/primitive fields
+          formData.append(key, String(value));
+        }
+      });
+
+      // Log FormData contents for debugging (optional)
+      // console.log('FormData contents:');
+      // for (let [key, value] of formData.entries()) {
+      //   console.log(key, value);
+      // }
+
+      // Call backend API to update profile with retry logic
+      let retryCount = 0;
+      const maxRetries = 1;
+
+      while (retryCount <= maxRetries) {
+        try {
+          const currentState = getState();
+          const currentAccessToken = currentState.user.accessToken;
+
+          const backendResponse = await axiosInstance.put(
+            "/users/update",
+            formData,
+            {
+              headers: {
+                Authorization: `Bearer ${currentAccessToken}`,
+                'Content-Type': 'multipart/form-data',
+              },
+            }
+          );
+          
+          const backendData = backendResponse.data.data;
+
+          toast.success("Profile updated successfully!", {
+            duration: 3000,
+          });
+
+          return { user: backendData };
+
+        } catch (error) {
+          console.error(`Backend update error (attempt ${retryCount + 1}):`, error);
+          
+          const errorMessage = error.response?.data?.message;
+          const errorStatus = error.response?.status;
+
+          // Handle authentication errors
+          if (errorStatus === 401 || errorMessage === "Invalid token" || errorMessage === "No token provided") {
+            
+            if (retryCount < maxRetries) {
+              // Try to refresh the token
+              try {
+                const {
+                  user: refreshedUser,
+                  accessToken: newAccessToken,
+                  error: refreshError,
+                } = await refreshUser();
+
+                if (!refreshError && refreshedUser && newAccessToken) {
+                  // Update the access token in Redux
+                  dispatch(setAccessToken(newAccessToken));
+                  retryCount++;
+                  continue; // Retry the request with new token
+                } else {
+                  // Token refresh failed
+                  toast.error("Session expired. Please login again.");
+                  dispatch(clearUser());
+                  setTimeout(() => {
+                    window.location.href = "/user/login";
+                  }, 1000);
+
+                  return rejectWithValue({
+                    message: "Session expired. Please login again.",
+                    isAuthError: true,
+                  });
+                }
+              } catch (refreshErr) {
+                console.error('Token refresh error:', refreshErr);
+                toast.error("Session expired. Please login again.");
+                dispatch(clearUser());
+                setTimeout(() => {
+                  window.location.href = "/user/login";
+                }, 1000);
+
+                return rejectWithValue({
+                  message: "Session expired. Please login again.",
+                  isAuthError: true,
+                });
+              }
+            } else {
+              // Max retries reached
+              toast.error("Session expired. Please login again.");
+              dispatch(clearUser());
+              setTimeout(() => {
+                window.location.href = "/user/login";
+              }, 1000);
+
+              return rejectWithValue({
+                message: "Session expired. Please login again.",
+                isAuthError: true,
+              });
+            }
+          } else {
+            // Handle other HTTP errors
+            let userFriendlyMessage = "Failed to update profile. Please try again."
+
+            toast.error(userFriendlyMessage);
+            return rejectWithValue({
+              message: userFriendlyMessage,
+              originalError: errorMessage,
+              status: errorStatus
+            });
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Unexpected update profile error:', error);
+      
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      
+      if (error.name === 'NetworkError' || error.message.includes('network')) {
+        errorMessage = "Network error. Please check your connection and try again.";
+      } else if (error.message.includes('timeout')) {
+        errorMessage = "Request timeout. Please try again.";
+      }
+
       toast.error(errorMessage);
       return rejectWithValue({ message: errorMessage });
     }
@@ -678,8 +841,6 @@ export const refreshFirebaseToken = createAsyncThunk(
         });
       }
 
-      // Successfully refreshed token
-      console.log("Firebase token refreshed successfully");
 
       return {
         accessToken: newAccessToken,
@@ -760,7 +921,6 @@ const userSlice = createSlice({
           state.user = { ...action.payload.backendData };
         }
 
-        console.log("User logged in:", state.user);
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
@@ -781,7 +941,6 @@ const userSlice = createSlice({
           state.user = { ...action.payload.backendData };
         }
 
-        console.log("User logged in with Google:", state.user);
       })
       .addCase(googleSignIn.rejected, (state, action) => {
         state.loading = false;
