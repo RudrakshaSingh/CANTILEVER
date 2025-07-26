@@ -1,9 +1,7 @@
 
 import admin from 'firebase-admin';
-import dotenv from 'dotenv';
 import ApiError from '../utils/ApiError.js'; 
 
-dotenv.config();
 
 // Initialize Firebase Admin (do this once in your main app file)
 if (!admin.apps.length) {

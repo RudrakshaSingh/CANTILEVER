@@ -6,7 +6,7 @@ import upload from "../middlewares/multermiddleware.js";
 const router = Router();
 
 router.post('/register', registerUser);
-router.post('/profile',authMiddleware, getUserByFirebaseUid);
+router.post('/profile', getUserByFirebaseUid);
 router.post('/refresh-profile', authMiddleware, getProfile);
 router.put('/update', authMiddleware,
     upload.single("profilePicture"), updateUser);

@@ -87,6 +87,16 @@ function UserProfile() {
     }
   };
 
+  // Helper function to check if mobile is valid
+  const isValidMobile = (mobile) => {
+    return mobile && mobile.trim() && mobile.trim().length > 0;
+  };
+
+  // Helper function to check if bio exists and is meaningful
+  const hasValidBio = (bio) => {
+    return bio && bio.trim() && bio.trim().length > 0;
+  };
+
   const tabItems = [
     { id: 'overview', label: 'Overview', icon: User },
     { id: 'destinations', label: 'Travel Plans', icon: MapPin },
@@ -130,7 +140,7 @@ function UserProfile() {
                       <Mail className="w-4 h-4 mr-2" />
                       <span>{user.email}</span>
                     </div>
-                    {user.mobile && user.mobile !== "------------" && (
+                    {isValidMobile(user.mobile) && (
                       <div className="flex items-center text-gray-600 mb-2">
                         <Phone className="w-4 h-4 mr-2" />
                         <span>{user.mobile}</span>
@@ -208,10 +218,19 @@ function UserProfile() {
                     About Me
                   </h3>
                   <div className="text-gray-600">
-                    <p className="mb-4">
-                      {user.bio || "Welcome to my TravelBuddy profile! I'm excited to connect with fellow travelers and explore amazing destinations together."}
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {hasValidBio(user.bio) ? (
+                      <p className="mb-4">{user.bio}</p>
+                    ) : (
+                      <div className="text-center py-6">
+                        <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                        <p className="text-gray-500 mb-2">No bio added yet</p>
+                        <button className="text-purple-600 hover:text-purple-700 font-medium text-sm">
+                          + Add Bio
+                        </button>
+                      </div>
+                    )}
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
                       <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                         <Calendar className="w-5 h-5 text-purple-600 mr-3" />
                         <div>
@@ -241,6 +260,17 @@ function UserProfile() {
                           <div>
                             <div className="text-sm text-gray-600">Gender</div>
                             <div className="font-medium capitalize">{user.gender}</div>
+                          </div>
+                        </div>
+                      )}
+                      {!isValidMobile(user.mobile) && (
+                        <div className="flex items-center p-3 bg-orange-50 rounded-lg border border-orange-200">
+                          <Phone className="w-5 h-5 text-orange-600 mr-3" />
+                          <div className="flex-1">
+                            <div className="text-sm text-orange-600">Mobile Number</div>
+                            <button className="text-orange-700 hover:text-orange-800 font-medium text-sm">
+                              + Add Phone Number
+                            </button>
                           </div>
                         </div>
                       )}
@@ -282,7 +312,7 @@ function UserProfile() {
                 </div>
 
                 {/* Social Links Section */}
-                {user.socialLinks && Object.values(user.socialLinks).some(link => link) && (
+                {user.socialLinks && Object.values(user.socialLinks).some(link => link) ? (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
                     <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                       <Globe className="w-5 h-5 mr-2 text-blue-600" />
@@ -307,6 +337,20 @@ function UserProfile() {
                           </a>
                         );
                       })}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl shadow-lg p-6">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                      <Globe className="w-5 h-5 mr-2 text-blue-600" />
+                      Social Links
+                    </h3>
+                    <div className="text-center py-8">
+                      <Globe className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 mb-4">No social links added yet</p>
+                      <button className="text-purple-600 hover:text-purple-700 font-medium">
+                        + Add Social Links
+                      </button>
                     </div>
                   </div>
                 )}
@@ -422,6 +466,39 @@ function UserProfile() {
 
           {/* Sidebar */}
           <div className="space-y-6">
+            {/* Profile Completion */}
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Profile Completion</h3>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Basic Info</span>
+                  <span className="font-semibold text-green-600">✓</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Profile Picture</span>
+                  <span className="font-semibold text-green-600">✓</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Bio</span>
+                  <span className={`font-semibold ${hasValidBio(user.bio) ? 'text-green-600' : 'text-orange-600'}`}>
+                    {hasValidBio(user.bio) ? '✓' : '○'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Phone Number</span>
+                  <span className={`font-semibold ${isValidMobile(user.mobile) ? 'text-green-600' : 'text-orange-600'}`}>
+                    {isValidMobile(user.mobile) ? '✓' : '○'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Languages</span>
+                  <span className={`font-semibold ${user.languages?.length > 0 ? 'text-green-600' : 'text-orange-600'}`}>
+                    {user.languages?.length > 0 ? '✓' : '○'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             {/* Quick Stats */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Stats</h3>
