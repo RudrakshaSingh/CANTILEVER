@@ -259,7 +259,7 @@ function ForgotPassword() {
           {/* Back to Login */}
           <div className="mt-6 text-center relative z-10">
             <Link
-              to="/login"
+              to="/user/login"
               className="inline-flex items-center text-sm font-medium text-purple-600 hover:text-purple-800 transition-colors duration-200"
             >
               <ArrowLeft className="w-4 h-4 mr-1" />

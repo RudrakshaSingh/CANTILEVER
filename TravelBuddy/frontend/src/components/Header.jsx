@@ -45,7 +45,7 @@ function Header() {
     { label: 'My Profile', href: '/user/profile', icon: User },
     { label: 'My Adventures', href: '/trips', icon: Calendar },
     { label: 'Saved Places', href: '/saved', icon: Star },
-    { label: 'Settings', href: '/settings', icon: Settings },
+    { label: 'Settings', href: '/user/profile?tab=settings', icon: Settings },
     { label: 'Help & Support', href: '/help', icon: null },
   ];
 

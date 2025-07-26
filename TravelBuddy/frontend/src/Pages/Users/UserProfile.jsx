@@ -26,16 +26,21 @@ import {
 import { deleteUserAccount } from "../../Redux/Slices/UserSlice";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 import EditProfileModal from "../../components/EditProfileModal ";
+import { useLocation } from "react-router-dom";
 
 function UserProfile() {
   // Get user from Redux store
   // Redux state and dispatch
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.user);
-  const [activeTab, setActiveTab] = useState("overview");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
+
+  const location = useLocation();
+const searchParams = new URLSearchParams(location.search);
+const defaultTab = searchParams.get("tab") || "overview";
+const [activeTab, setActiveTab] = useState(defaultTab);
 
   const handleDeleteAccount = () => {
     setIsDeleteModalOpen(true);
@@ -391,6 +396,7 @@ function UserProfile() {
                         ([platform, url]) => {
                           if (!url) return null;
                           const IconComponent = getSocialIcon(platform);
+                          
                           return (
                             <a
                               key={platform}

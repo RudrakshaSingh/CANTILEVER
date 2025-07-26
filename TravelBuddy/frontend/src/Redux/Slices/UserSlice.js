@@ -5,10 +5,7 @@ import {
   loginWithEmailPass,
   googleLogin,
   sendVerificationEmail,
-  verifyEmail,
   sendPasswordResetEmailToUser,
-  checkPasswordResetCode,
-  confirmPasswordResetWithCode,
   logout,
   refreshUser,
   updateUserProfile,
@@ -235,38 +232,6 @@ export const sendVerificationEmailThunk = createAsyncThunk(
   }
 );
 
-// Verify Email with Action Code
-export const verifyEmailThunk = createAsyncThunk(
-  "user/verifyEmail",
-  async ({ actionCode }, { rejectWithValue }) => {
-    try {
-      const { error, message } = await verifyEmail(actionCode);
-
-      if (error) {
-        let errorMessage = "Email verification failed. Please try again.";
-        if (error.code === "auth/invalid-action-code") {
-          errorMessage = "Invalid or expired verification link.";
-        } else if (error.code === "auth/expired-action-code") {
-          errorMessage =
-            "Verification link has expired. Please request a new one.";
-        }
-
-        toast.error(errorMessage);
-        return rejectWithValue({ message: errorMessage, code: error.code });
-      }
-
-      toast.success(message || "Email verified successfully!", {
-        duration: 4000,
-      });
-
-      return { message };
-    } catch {
-      const errorMessage = "An unexpected error occurred during verification.";
-      toast.error(errorMessage);
-      return rejectWithValue({ message: errorMessage });
-    }
-  }
-);
 
 // Send Password Reset Email
 export const sendPasswordResetEmail = createAsyncThunk(
@@ -290,75 +255,6 @@ export const sendPasswordResetEmail = createAsyncThunk(
 
       toast.success(
         message || "Password reset email sent! Please check your inbox.",
-        {
-          duration: 4000,
-        }
-      );
-
-      return { message };
-    } catch {
-      const errorMessage = "An unexpected error occurred. Please try again.";
-      toast.error(errorMessage);
-      return rejectWithValue({ message: errorMessage });
-    }
-  }
-);
-
-// Verify Password Reset Code
-export const verifyPasswordResetCode = createAsyncThunk(
-  "user/verifyPasswordResetCode",
-  async ({ actionCode }, { rejectWithValue }) => {
-    try {
-      const { email, error, message } = await checkPasswordResetCode(
-        actionCode
-      );
-
-      if (error) {
-        let errorMessage = "Invalid or expired reset link.";
-        if (error.code === "auth/invalid-action-code") {
-          errorMessage = "Invalid password reset link.";
-        } else if (error.code === "auth/expired-action-code") {
-          errorMessage = "Password reset link has expired.";
-        }
-
-        toast.error(errorMessage);
-        return rejectWithValue({ message: errorMessage, code: error.code });
-      }
-
-      return { email, message };
-    } catch {
-      const errorMessage = "An unexpected error occurred. Please try again.";
-      toast.error(errorMessage);
-      return rejectWithValue({ message: errorMessage });
-    }
-  }
-);
-
-// Reset Password with New Password
-export const resetPassword = createAsyncThunk(
-  "user/resetPassword",
-  async ({ actionCode, newPassword }, { rejectWithValue }) => {
-    try {
-      const { error, message } = await confirmPasswordResetWithCode(
-        actionCode,
-        newPassword
-      );
-
-      if (error) {
-        let errorMessage = "Failed to reset password. Please try again.";
-        if (error.code === "auth/weak-password") {
-          errorMessage =
-            "Password is too weak. Please choose a stronger password.";
-        } else if (error.code === "auth/invalid-action-code") {
-          errorMessage = "Invalid or expired reset link.";
-        }
-
-        toast.error(errorMessage);
-        return rejectWithValue({ message: errorMessage, code: error.code });
-      }
-
-      toast.success(
-        message || "Password reset successfully! You can now login.",
         {
           duration: 4000,
         }
@@ -959,22 +855,6 @@ const userSlice = createSlice({
         state.error = action.payload.message;
       })
 
-      // Verify Email
-      .addCase(verifyEmailThunk.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(verifyEmailThunk.fulfilled, (state) => {
-        state.loading = false;
-        // Update user's emailVerified status if user is logged in
-        if (state.user) {
-          state.user.emailVerified = true;
-        }
-      })
-      .addCase(verifyEmailThunk.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload.message;
-      })
-
       // Send Password Reset Email
       .addCase(sendPasswordResetEmail.pending, (state) => {
         state.loading = true;
@@ -983,30 +863,6 @@ const userSlice = createSlice({
         state.loading = false;
       })
       .addCase(sendPasswordResetEmail.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload.message;
-      })
-
-      // Verify Password Reset Code
-      .addCase(verifyPasswordResetCode.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(verifyPasswordResetCode.fulfilled, (state) => {
-        state.loading = false;
-      })
-      .addCase(verifyPasswordResetCode.rejected, (state, action) => {
-        state.loading = false;
-        state.error = action.payload.message;
-      })
-
-      // Reset Password
-      .addCase(resetPassword.pending, (state) => {
-        state.loading = true;
-      })
-      .addCase(resetPassword.fulfilled, (state) => {
-        state.loading = false;
-      })
-      .addCase(resetPassword.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload.message;
       })

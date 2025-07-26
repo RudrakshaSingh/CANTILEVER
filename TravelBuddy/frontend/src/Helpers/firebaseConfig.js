@@ -291,7 +291,6 @@ export const reauthenticateWithGoogle = async () => {
 export const deleteAccount = async () => {
   try {
     const user = auth.currentUser;
-    console.log("Attempting to delete user:", user?.uid);
     
     if (!user) {
       return { error: new Error("No authenticated user") };
@@ -328,7 +327,6 @@ export const deleteAccountWithReauth = async () => {
     
     // If re-authentication is required
     if (deleteResult.requiresReauth) {
-      console.log("Re-authentication required, prompting user...");
       
       // Re-authenticate user
       const reauthResult = await reauthenticateWithGoogle();
@@ -340,7 +338,6 @@ export const deleteAccountWithReauth = async () => {
         };
       }
       
-      console.log("Re-authentication successful, attempting delete again...");
       
       // Try deleting again after successful re-auth
       deleteResult = await deleteAccount();
