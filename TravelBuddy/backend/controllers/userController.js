@@ -159,3 +159,22 @@ export const updateUser = asyncHandler(async (req, res) => {
   await user.save();
   res.status(200).json(new ApiResponse(200, user, "User updated successfully"));
 });
+
+export const deleteUser = asyncHandler(async (req, res) => {
+  const { firebaseUid } = req.body;
+  console.log("hi");
+  
+
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
+
+  const user = await User.findOne({ firebaseUid });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Delete user from database
+  await User.deleteOne({ firebaseUid });
+  res.status(200).json(new ApiResponse(200, user, "User deleted successfully"));
+});

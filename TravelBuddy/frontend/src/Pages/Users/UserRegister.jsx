@@ -33,7 +33,9 @@ function UserRegister() {
 
   // Redux state and dispatch
   const dispatch = useDispatch();
-  const { loading, error, isAuthenticated } = useSelector((state) => state.user);
+  const { loading, error, isAuthenticated } = useSelector(
+    (state) => state.user
+  );
   const navigate = useNavigate();
 
   // Redirect if already authenticated
@@ -89,11 +91,13 @@ function UserRegister() {
 
     try {
       // Dispatch Redux action for user registration
-      await dispatch(registerUser({
-        email: userData.emailAddress,
-        password: userData.userPassword,
-        fullName: userData.fullName
-      })).unwrap();
+      await dispatch(
+        registerUser({
+          email: userData.emailAddress,
+          password: userData.userPassword,
+          fullName: userData.fullName,
+        })
+      ).unwrap();
 
       // Handle success - show verification step
       setRegisteredEmail(userData.emailAddress);
@@ -107,33 +111,26 @@ function UserRegister() {
         passwordConfirm: "",
       });
       setValidationErrors({});
-      
     } catch (error) {
       // Error handling is done in the Redux thunk with toast messages
-      console.error('Registration failed:', error);
+      console.error("Registration failed:", error);
     }
   };
 
   const handleResendVerification = async () => {
-    try {
-      // Dispatch Redux action to resend verification email
-      await dispatch(sendVerificationEmailThunk()).unwrap();
-    } catch (error) {
-      // Error handling is done in the Redux thunk with toast messages
-      console.error('Resend verification failed:', error);
-    }
+    await dispatch(sendVerificationEmailThunk()).unwrap();
   };
 
   const handleGoogleAuthentication = async () => {
     try {
       // Dispatch Redux action for Google sign-in
       await dispatch(googleSignIn()).unwrap();
-      
+
       // Navigate to dashboard on success
-      navigate("/dashboard");
+      navigate("/user/profile");
     } catch (error) {
       // Error handling is done in the Redux thunk with toast messages
-      console.error('Google sign-in failed:', error);
+      console.error("Google sign-in failed:", error);
     }
   };
 

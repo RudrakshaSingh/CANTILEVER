@@ -17,7 +17,9 @@ import {
   reload,
   sendPasswordResetEmail,
   confirmPasswordReset,
-  verifyPasswordResetCode
+  verifyPasswordResetCode,
+  deleteUser,
+  reauthenticateWithPopup
 } from "firebase/auth";
 
 // Your web app's Firebase configuration
@@ -238,6 +240,120 @@ export const updateUserProfile = async (updates) => {
     return { error: new Error("No authenticated user") };
   } catch (error) {
     return { error };
+  }
+};
+
+// Re-authenticate user with Google
+export const reauthenticateWithGoogle = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error("No authenticated user found");
+    }
+
+    const provider = new GoogleAuthProvider();
+    // Add any additional scopes if needed
+    provider.addScope('email');
+    provider.addScope('profile');
+
+    // Re-authenticate with popup
+    const result = await reauthenticateWithPopup(user, provider);
+    
+    return { 
+      success: true, 
+      user: result.user,
+      message: "Re-authentication successful" 
+    };
+  } catch (error) {
+    console.error("Re-authentication error:", error);
+    
+    // Handle specific errors
+    if (error.code === 'auth/popup-closed-by-user') {
+      return { 
+        error, 
+        message: "Re-authentication was cancelled. Please try again." 
+      };
+    } else if (error.code === 'auth/popup-blocked') {
+      return { 
+        error, 
+        message: "Popup was blocked. Please allow popups and try again." 
+      };
+    }
+    
+    return { 
+      error, 
+      message: "Re-authentication failed. Please try again." 
+    };
+  }
+};
+
+// Delete user account
+export const deleteAccount = async () => {
+  try {
+    const user = auth.currentUser;
+    console.log("Attempting to delete user:", user?.uid);
+    
+    if (!user) {
+      return { error: new Error("No authenticated user") };
+    }
+
+    await deleteUser(user);
+    return { 
+      success: true,
+      message: "Account deleted successfully!" 
+    };
+    
+  } catch (error) {
+    console.error("Delete account error:", error);
+    
+    if (error.code === 'auth/requires-recent-login') {
+      return { 
+        error, 
+        requiresReauth: true,
+        message: "For security reasons, please log in again before deleting your account." 
+      };
+    }
+    
+    return { 
+      error,
+      message: "Failed to delete account. Please try again." 
+    };
+  }
+};
+
+export const deleteAccountWithReauth = async () => {
+  try {
+    // First attempt to delete
+    let deleteResult = await deleteAccount();
+    
+    // If re-authentication is required
+    if (deleteResult.requiresReauth) {
+      console.log("Re-authentication required, prompting user...");
+      
+      // Re-authenticate user
+      const reauthResult = await reauthenticateWithGoogle();
+      
+      if (!reauthResult.success) {
+        return {
+          error: reauthResult.error,
+          message: reauthResult.message
+        };
+      }
+      
+      console.log("Re-authentication successful, attempting delete again...");
+      
+      // Try deleting again after successful re-auth
+      deleteResult = await deleteAccount();
+    }
+    
+    return deleteResult;
+    
+  } catch (error) {
+    console.error("Complete delete flow error:", error);
+    return {
+      error,
+      message: "An unexpected error occurred. Please try again."
+    };
   }
 };
 

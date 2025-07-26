@@ -12,6 +12,7 @@ import {
   logout,
   refreshUser,
   updateUserProfile,
+  deleteAccountWithReauth,
 } from "../../Helpers/firebaseConfig";
 import axiosInstance from "../../Helpers/axiosInstance";
 
@@ -452,24 +453,49 @@ export const refreshUserData = createAsyncThunk(
           } = await refreshUser();
 
           if (!refreshError && refreshedUser && newAccessToken) {
-            // Update the Redux state with new access token
+            // Update the access token immediately in Redux state
             dispatch(setAccessToken(newAccessToken));
 
-            // Show toast to try again (don't retry automatically)
-            toast.error("Session token refreshed. Please try again.");
+            // Now retry the backend call with the new token
+            try {
+              const retryResponse = await axiosInstance.post(
+                "/users/refresh-profile",
+                {
+                  firebaseUid: refreshedUser.uid,
+                },
+                {
+                  headers: {
+                    Authorization: `Bearer ${newAccessToken}`,
+                  },
+                }
+              );
 
-            return rejectWithValue({
-              message: "Session token refreshed. Please try again.",
-              accessToken: newAccessToken,
-            });
+              const backendData = retryResponse.data.data;
+              toast.success("User data refreshed successfully!", {
+                duration: 3000,
+              });
+
+              return {
+                user: backendData,
+                accessToken: newAccessToken,
+              };
+            } catch  {
+              // If retry also fails, handle as auth error
+              toast.error("Session expired. Please login again.");
+              dispatch(clearUser());
+              setTimeout(() => {
+                redirectToLogin();
+              }, 1000);
+
+              return rejectWithValue({
+                message: "Session expired. Please login again.",
+                isAuthError: true,
+              });
+            }
           } else {
             // refreshUser failed, show error and redirect
             toast.error("Session expired. Please login again.");
-
-            // Clear Redux user state immediately
             dispatch(clearUser());
-
-            // Redirect to login page after a short delay
             setTimeout(() => {
               redirectToLogin();
             }, 1000);
@@ -482,11 +508,7 @@ export const refreshUserData = createAsyncThunk(
         } catch {
           // Exception during refreshUser, show error and redirect
           toast.error("Session expired. Please login again.");
-
-          // Clear Redux user state immediately
           dispatch(clearUser());
-
-          // Redirect to login page after a short delay
           setTimeout(() => {
             redirectToLogin();
           }, 1000);
@@ -505,6 +527,84 @@ export const refreshUserData = createAsyncThunk(
       return rejectWithValue({
         message: errorMessage || "An unexpected error occurred",
       });
+    }
+  }
+);
+
+// Delete User Account
+export const deleteUserAccount = createAsyncThunk(
+  "user/deleteUserAccount",
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const { user: currentUser, accessToken } = getState().user;
+
+      if (!currentUser || !accessToken) {
+        const errorMessage = "No authenticated user found.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage });
+      }
+
+      // First, delete Firebase account
+      const { error, message, requiresReauth } =
+        await deleteAccountWithReauth();
+
+      if (error) {
+        if (requiresReauth) {
+          toast.error(
+            "For security reasons, please log in again before deleting your account."
+          );
+          return rejectWithValue({
+            message: "Recent authentication required",
+            requiresReauth: true,
+          });
+        }
+
+        let errorMessage = "Failed to delete account. Please try again.";
+        if (error.code === "auth/user-not-found") {
+          errorMessage = "User account not found.";
+        } else if (error.code === "auth/operation-not-allowed") {
+          errorMessage = "Account deletion is not allowed.";
+        }
+
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage, code: error.code });
+      }
+
+      // After successful Firebase deletion, call backend to clean up user data
+      try {
+        console.log("Attempting backend cleanup...",currentUser.firebaseUid,"nii", accessToken);
+        
+        await axiosInstance.post(
+          "/users/delete",
+          {
+            firebaseUid: currentUser.firebaseUid,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          }
+        );
+      } catch (error) {
+        toast.error(
+          error
+        )
+      }
+
+      toast.success(message || "Account deleted successfully!", {
+        duration: 4000,
+      });
+
+      // Redirect to register page after successful deletion
+      // setTimeout(() => {
+      //   window.location.href = "/user/register";
+      // }, 2000);
+
+      return { message };
+    } catch {
+      const errorMessage = "An unexpected error occurred. Please try again.";
+      toast.error(errorMessage);
+      return rejectWithValue({ message: errorMessage });
     }
   }
 );
@@ -553,7 +653,53 @@ export const updateProfile = createAsyncThunk(
     }
   }
 );
+// Refresh Firebase Token - Simple function to refresh and set new token
+export const refreshFirebaseToken = createAsyncThunk(
+  "user/refreshFirebaseToken",
+  async (_, { rejectWithValue, dispatch }) => {
+    try {
+      const {
+        user: refreshedUser,
+        accessToken: newAccessToken,
+        error: refreshError,
+      } = await refreshUser();
 
+      if (refreshError || !refreshedUser || !newAccessToken) {
+        // If refresh fails, clear user and redirect to login
+        toast.error("Session expired. Please login again.");
+        dispatch(clearUser());
+        setTimeout(() => {
+          redirectToLogin();
+        }, 1000);
+
+        return rejectWithValue({
+          message: "Failed to refresh token. Please login again.",
+          isAuthError: true,
+        });
+      }
+
+      // Successfully refreshed token
+      console.log("Firebase token refreshed successfully");
+
+      return {
+        accessToken: newAccessToken,
+        firebaseUid: refreshedUser.uid,
+      };
+    } catch {
+      // Exception during refresh, clear user and redirect
+      toast.error("Session expired. Please login again.");
+      dispatch(clearUser());
+      setTimeout(() => {
+        redirectToLogin();
+      }, 1000);
+
+      return rejectWithValue({
+        message: "An unexpected error occurred during token refresh.",
+        isAuthError: true,
+      });
+    }
+  }
+);
 // User Slice
 const userSlice = createSlice({
   name: "user",
@@ -730,6 +876,7 @@ const userSlice = createSlice({
         if (action.payload.user) {
           state.user = action.payload.user;
         }
+
         if (action.payload.accessToken) {
           state.accessToken = action.payload.accessToken;
         }
@@ -762,13 +909,69 @@ const userSlice = createSlice({
       .addCase(updateProfile.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload.message;
+      })
+
+      // Refresh Firebase Token
+      .addCase(refreshFirebaseToken.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(refreshFirebaseToken.fulfilled, (state, action) => {
+        state.loading = false;
+        // Update the access token
+        if (action.payload.accessToken) {
+          state.accessToken = action.payload.accessToken;
+        }
+      })
+      .addCase(refreshFirebaseToken.rejected, (state, action) => {
+        state.loading = false;
+
+        // Handle auth errors by clearing state
+        if (action.payload?.isAuthError === true) {
+          state.user = null;
+          state.accessToken = null;
+          state.error = null; // Clear error since we're redirecting
+        } else {
+          state.error = action.payload?.message || "Token refresh failed";
+        }
+      })
+
+      // Delete User Account
+      .addCase(deleteUserAccount.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteUserAccount.fulfilled, (state) => {
+        // Clear all user data after successful deletion
+        state.user = null;
+        state.accessToken = null;
+        state.loading = false;
+        state.error = null;
+      })
+      .addCase(deleteUserAccount.rejected, (state, action) => {
+        state.loading = false;
+
+        // Handle auth errors by clearing state
+        if (action.payload?.isAuthError === true) {
+          state.user = null;
+          state.accessToken = null;
+          state.error = null;
+        } else {
+          state.error = action.payload?.message || "Failed to delete account";
+        }
       });
   },
 });
 
 // Export actions
-export const { setUser, clearUser, setLoading, setError, clearError, setAccessToken } =
-  userSlice.actions;
+export const {
+  setUser,
+  clearUser,
+  setLoading,
+  setError,
+  clearError,
+  setAccessToken,
+} = userSlice.actions;
 
 // Export reducer
 export default userSlice.reducer;

@@ -212,7 +212,7 @@ function UserRegister() {
       );
 
       // Navigate to dashboard
-      navigate("/dashboard");
+      navigate("/user/profile");
     } catch {
       toast.error("An unexpected error occurred. Please try again.", {
         id: loadingToast,

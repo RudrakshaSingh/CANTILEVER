@@ -1,14 +1,12 @@
-
-import admin from 'firebase-admin';
-import ApiError from '../utils/ApiError.js'; 
-
+import admin from "firebase-admin";
+import ApiError from "../utils/ApiError.js";
 
 // Initialize Firebase Admin (do this once in your main app file)
 if (!admin.apps.length) {
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     }),
   });
@@ -18,10 +16,11 @@ if (!admin.apps.length) {
 const authMiddleware = async (req, res, next) => {
   try {
     // Get token from header
-    const token = req.headers.authorization?.split(' ')[1];
-    
+    const token = req.headers.authorization?.split(" ")[1];
+    console.log("uyjuyj", token);
+
     if (!token) {
-      throw new ApiError(401, 'No token provided');
+      throw new ApiError(401, "No token provided");
     }
 
     // Verify token
@@ -29,22 +28,23 @@ const authMiddleware = async (req, res, next) => {
     const userRecord = await admin.auth().getUser(decodedToken.uid);
 
     // Check if email is verified
+    console.log("h1");
+    
     if (!userRecord.emailVerified) {
-      throw new ApiError(403, 'Please verify your email first');
+      throw new ApiError(403, "Please verify your email first");
     }
+    console.log("h2");
 
     // Add user info to request
     req.user = {
       uid: decodedToken.uid,
       email: userRecord.email,
-      emailVerified: userRecord.emailVerified
+      emailVerified: userRecord.emailVerified,
     };
 
     next();
-  } catch (error) {
-    console.log("invalid token");
-    
-    throw new ApiError(401, 'Invalid token');
+  } catch {
+    throw new ApiError(401, "Invalid token");
   }
 };
 
