@@ -18,6 +18,7 @@ function App() {
 
         <Route element={<ProtectedRoute allowedRoles={["user","admin"]} />}>
           <Route path="/user/profile" element={<UserProfile />} />
+
         </Route>
       </Route>
       {/* Add more routes as needed */}

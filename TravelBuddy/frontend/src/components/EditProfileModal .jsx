@@ -94,7 +94,15 @@ const LanguageAutocomplete = ({ value, onChange, onBlur, disabled, error, placeh
         e.preventDefault();
         if (highlightedIndex >= 0 && filteredOptions[highlightedIndex]) {
           handleOptionClick(filteredOptions[highlightedIndex]);
+        } else {
+          // If no option is highlighted, accept the current input value
+          setIsOpen(false);
+          inputRef.current?.blur();
         }
+        break;
+      case 'Tab':
+        // Allow Tab to close dropdown and accept current value
+        setIsOpen(false);
         break;
       case 'Escape':
         setIsOpen(false);
@@ -130,7 +138,7 @@ const LanguageAutocomplete = ({ value, onChange, onBlur, disabled, error, placeh
           className={`w-full px-4 py-2 bg-white/80 backdrop-blur-sm border-2 rounded-lg focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed pr-10 ${
             error ? "border-red-400" : "border-gray-200"
           }`}
-          placeholder={placeholder}
+          placeholder={placeholder || "Type to search languages or enter custom..."}
           maxLength={30}
           autoComplete="off"
         />
@@ -143,12 +151,16 @@ const LanguageAutocomplete = ({ value, onChange, onBlur, disabled, error, placeh
         </div>
       </div>
 
+      {/* Suggestions dropdown */}
       {isOpen && filteredOptions.length > 0 && (
         <div
           ref={dropdownRef}
           className="absolute z-[200] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-2xl max-h-60 overflow-auto"
           style={{ boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
         >
+          <div className="px-3 py-2 text-xs text-gray-500 bg-gray-50 border-b border-gray-200">
+            Suggested languages (or continue typing for custom)
+          </div>
           {filteredOptions.map((option, optionIndex) => (
             <div
               key={option}
@@ -163,6 +175,23 @@ const LanguageAutocomplete = ({ value, onChange, onBlur, disabled, error, placeh
               {option}
             </div>
           ))}
+          {value.trim() && !LANGUAGE_OPTIONS.some(lang => 
+            lang.toLowerCase() === value.toLowerCase()
+          ) && (
+            <div className="border-t border-gray-200 bg-blue-50">
+              <button
+                type="button"
+                onClick={() => {
+                  onChange(value.trim());
+                  setIsOpen(false);
+                  inputRef.current?.blur();
+                }}
+                className="w-full text-left px-4 py-2 text-sm text-blue-700 hover:bg-blue-100 transition-colors duration-150"
+              >
+                ✓ Use "{value.trim()}" as custom language
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -172,8 +201,21 @@ const LanguageAutocomplete = ({ value, onChange, onBlur, disabled, error, placeh
           className="absolute z-[200] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-2xl"
           style={{ boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
         >
-          <div className="px-4 py-2 text-gray-500 text-sm">
-            No languages found matching "{value}"
+          <div className="px-4 py-3 border-b border-gray-100">
+            <div className="text-gray-500 text-sm mb-2">
+              No languages found matching "{value}"
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                onChange(value);
+                setIsOpen(false);
+                inputRef.current?.blur();
+              }}
+              className="w-full text-left px-3 py-2 text-sm bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors duration-150 border border-blue-200"
+            >
+              ✓ Use "{value}" as custom language
+            </button>
           </div>
         </div>
       )}
@@ -295,8 +337,9 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
       } else if (lang.language.length > 30) {
         newErrors[`language_${index}`] =
           "Language name must be 30 characters or less";
-      } else if (!LANGUAGE_OPTIONS.includes(lang.language.trim())) {
-        newErrors[`language_${index}`] = "Please select a valid language from the list";
+      } else if (!/^[a-zA-Z\s\-'\.]+$/.test(lang.language.trim())) {
+        newErrors[`language_${index}`] =
+          "Language name can only contain letters, spaces, hyphens, apostrophes, and periods";
       }
     });
 
@@ -913,7 +956,7 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
                         onChange={(value) => updateLanguage(index, "language", value)}
                         disabled={isLoading}
                         error={errors[`language_${index}`]}
-                        placeholder="Search for a language..."
+                        placeholder="Type to search or enter custom language..."
                         index={index}
                       />
                       {errors[`language_${index}`] && (
