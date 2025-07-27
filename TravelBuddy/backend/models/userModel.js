@@ -36,6 +36,7 @@ const userSchema = new mongoose.Schema(
     profilePicture: {
       type: String,
       default: process.env.DEFAULT_PROFILE_IMAGE_URL,
+      required: true,
     },
 
     bio: {
@@ -93,6 +94,28 @@ const userSchema = new mongoose.Schema(
         lng: Number,
       },
     ],
+    profileCompletion: {
+      basicInfo: {
+        type: Boolean,
+        default: false,
+      },
+      profilePicture: {
+        type: Boolean,
+        default: false,
+      },
+      bio: {
+        type: Boolean,
+        default: false,
+      },
+      phoneNumber: {
+        type: Boolean,
+        default: false,
+      },
+      languages: {
+        type: Boolean,
+        default: false,
+      },
+    },
   },
   {
     timestamps: true,

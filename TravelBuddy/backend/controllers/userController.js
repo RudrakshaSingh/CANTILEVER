@@ -66,6 +66,23 @@ export const getProfile = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, user, "User found successfully"));
 });
 
+export const deleteUser = asyncHandler(async (req, res) => {
+  const { firebaseUid } = req.body;
+
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
+
+  const user = await User.findOne({ firebaseUid });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Delete user from database
+  await User.deleteOne({ firebaseUid });
+  res.status(200).json(new ApiResponse(200, user, "User deleted successfully"));
+});
+
 export const updateUser = asyncHandler(async (req, res) => {
   const {
     firebaseUid,
@@ -78,16 +95,6 @@ export const updateUser = asyncHandler(async (req, res) => {
     socialLinks,
     futureDestinations,
   } = req.body;
-
-  console.log("firebaseUid", firebaseUid);
-  console.log("fullName", fullName);
-  console.log("mobile", mobile);
-  console.log("bio", bio);
-  console.log("dateOfBirth", dateOfBirth);
-  console.log("gender", gender);
-  console.log("languages", languages);
-  console.log("socialLinks", socialLinks);
-  console.log("futureDestinations", futureDestinations);
 
   if (!firebaseUid) {
     throw new ApiError(400, "Firebase UID is required");
@@ -154,7 +161,8 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (languages !== undefined) {
     try {
       // Parse languages if it's a string, otherwise use as-is
-      user.languages = typeof languages === 'string' ? JSON.parse(languages) : languages;
+      user.languages =
+        typeof languages === "string" ? JSON.parse(languages) : languages;
     } catch (error) {
       throw new ApiError(400, "Invalid languages format");
     }
@@ -163,7 +171,8 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (socialLinks !== undefined) {
     try {
       // Parse socialLinks if it's a string, otherwise use as-is
-      user.socialLinks = typeof socialLinks === 'string' ? JSON.parse(socialLinks) : socialLinks;
+      user.socialLinks =
+        typeof socialLinks === "string" ? JSON.parse(socialLinks) : socialLinks;
     } catch (error) {
       throw new ApiError(400, "Invalid socialLinks format");
     }
@@ -172,30 +181,49 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (futureDestinations !== undefined) {
     try {
       // Parse futureDestinations if it's a string, otherwise use as-is
-      user.futureDestinations = typeof futureDestinations === 'string' ? JSON.parse(futureDestinations) : futureDestinations;
+      user.futureDestinations =
+        typeof futureDestinations === "string"
+          ? JSON.parse(futureDestinations)
+          : futureDestinations;
     } catch (error) {
       throw new ApiError(400, "Invalid futureDestinations format");
     }
   }
 
+  // Update profile completion status
+  updateProfileCompletion(user);
+
   await user.save();
   res.status(200).json(new ApiResponse(200, user, "User updated successfully"));
 });
 
-export const deleteUser = asyncHandler(async (req, res) => {
-  const { firebaseUid } = req.body;
-  
+// Helper function to update profile completion status
+const updateProfileCompletion = (user) => {
+  // Check basic info (fullName, dateOfBirth, gender)
+  user.profileCompletion.basicInfo = !!(
+    user.fullName &&
+    user.dateOfBirth &&
+    user.gender
+  );
 
-  if (!firebaseUid) {
-    throw new ApiError(400, "Firebase UID is required");
-  }
+  // Check profile picture (true only if URL is not default)
+  user.profileCompletion.profilePicture = !!(
+    user.profilePicture &&
+    user.profilePicture !== process.env.DEFAULT_PROFILE_IMAGE_URL
+  );
 
-  const user = await User.findOne({ firebaseUid });
-  if (!user) {
-    throw new ApiError(404, "User not found");
-  }
+  // Check bio
+  user.profileCompletion.bio = !!(user.bio && user.bio.trim().length > 0);
 
-  // Delete user from database
-  await User.deleteOne({ firebaseUid });
-  res.status(200).json(new ApiResponse(200, user, "User deleted successfully"));
-});
+  // Check phone number
+  user.profileCompletion.phoneNumber = !!(
+    user.mobile && user.mobile.trim().length > 0
+  );
+
+  // Check languages (at least one language with proficiency)
+  user.profileCompletion.languages = !!(
+    user.languages &&
+    user.languages.length > 0 &&
+    user.languages.some((lang) => lang.language && lang.proficiency)
+  );
+};

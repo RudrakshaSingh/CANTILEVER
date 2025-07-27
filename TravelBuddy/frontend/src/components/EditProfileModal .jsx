@@ -289,112 +289,121 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
   }, [isOpen, dispatch]);
 
   const validateForm = () => {
-    const newErrors = {};
+  const newErrors = {};
 
-    // Validate full name
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = "Full name is required";
-    } else if (formData.fullName.trim().length < 2) {
-      newErrors.fullName = "Full name must be at least 2 characters";
-    } else if (formData.fullName.length > 50) {
-      newErrors.fullName = "Full name must be 50 characters or less";
-    } else if (!/^[a-zA-Z\s\-'\.]+$/.test(formData.fullName.trim())) {
-      newErrors.fullName =
-        "Full name can only contain letters, spaces, hyphens, apostrophes, and periods";
+  // Validate full name
+  if (!formData.fullName.trim()) {
+    newErrors.fullName = "Full name is required";
+  } else if (formData.fullName.trim().length < 2) {
+    newErrors.fullName = "Full name must be at least 2 characters";
+  } else if (formData.fullName.length > 50) {
+    newErrors.fullName = "Full name must be 50 characters or less";
+  } else if (!/^[a-zA-Z\s\-'\.]+$/.test(formData.fullName.trim())) {
+    newErrors.fullName =
+      "Full name can only contain letters, spaces, hyphens, apostrophes, and periods";
+  }
+
+  // Validate mobile (now required)
+  if (!formData.mobile.trim()) {
+    newErrors.mobile = "Mobile number is required";
+  } else {
+    const mobilePattern = /^[\+]?[1-9][\d]{0,15}$/;
+    const cleanMobile = formData.mobile.replace(/[\s\-\(\)]/g, "");
+    if (!mobilePattern.test(cleanMobile)) {
+      newErrors.mobile = "Please enter a valid phone number (10-16 digits)";
+    }
+  }
+
+  // Validate bio (now required)
+  if (!formData.bio.trim()) {
+    newErrors.bio = "Bio is required";
+  } else if (formData.bio.length > 500) {
+    newErrors.bio = "Bio must be 500 characters or less";
+  }
+
+  // Validate profile picture (now required)
+  if (!formData.profilePicturePreview && !formData.profilePicture) {
+    newErrors.profilePicture = "Profile picture is required";
+  }
+
+  // Validate date of birth
+  if (formData.dateOfBirth) {
+    const birthDate = new Date(formData.dateOfBirth);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+
+    if (birthDate > today) {
+      newErrors.dateOfBirth = "Date of birth cannot be in the future";
+    } else if (age > 120) {
+      newErrors.dateOfBirth = "Please enter a valid date of birth";
+    }
+  }
+
+  // Validate languages
+  formData.languages.forEach((lang, index) => {
+    if (!lang.language.trim()) {
+      newErrors[`language_${index}`] = "Language name is required";
+    } else if (lang.language.length > 30) {
+      newErrors[`language_${index}`] =
+        "Language name must be 30 characters or less";
+    } else if (!/^[a-zA-Z\s\-'\.]+$/.test(lang.language.trim())) {
+      newErrors[`language_${index}`] =
+        "Language name can only contain letters, spaces, hyphens, apostrophes, and periods";
+    }
+  });
+
+  // Validate future destinations
+  formData.futureDestinations.forEach((dest, index) => {
+    if (!dest.destination.trim()) {
+      newErrors[`destination_${index}`] = "Destination name is required";
+    } else if (dest.destination.length > 100) {
+      newErrors[`destination_${index}`] =
+        "Destination name must be 100 characters or less";
     }
 
-    // Validate bio length
-    if (formData.bio && formData.bio.length > 500) {
-      newErrors.bio = "Bio must be 500 characters or less";
+    // Validate coordinates if provided
+    if ((dest.lat && !dest.lng) || (!dest.lat && dest.lng)) {
+      newErrors[`coordinates_${index}`] =
+        "Both latitude and longitude are required";
     }
 
-    // Validate mobile (more comprehensive pattern)
-    if (formData.mobile && formData.mobile.trim()) {
-      const mobilePattern = /^[\+]?[1-9][\d]{0,15}$/;
-      const cleanMobile = formData.mobile.replace(/[\s\-\(\)]/g, "");
-      if (!mobilePattern.test(cleanMobile)) {
-        newErrors.mobile = "Please enter a valid phone number (10-16 digits)";
-      }
+    if (dest.lat && (isNaN(dest.lat) || dest.lat < -90 || dest.lat > 90)) {
+      newErrors[`lat_${index}`] = "Latitude must be between -90 and 90";
     }
 
-    // Validate date of birth
-    if (formData.dateOfBirth) {
-      const birthDate = new Date(formData.dateOfBirth);
+    if (dest.lng && (isNaN(dest.lng) || dest.lng < -180 || dest.lng > 180)) {
+      newErrors[`lng_${index}`] = "Longitude must be between -180 and 180";
+    }
+
+    // Validate planned date
+    if (dest.plannedDate) {
+      const plannedDate = new Date(dest.plannedDate);
       const today = new Date();
-      const age = today.getFullYear() - birthDate.getFullYear();
+      today.setHours(0, 0, 0, 0);
 
-      if (birthDate > today) {
-        newErrors.dateOfBirth = "Date of birth cannot be in the future";
-      } else if (age > 120) {
-        newErrors.dateOfBirth = "Please enter a valid date of birth";
+      if (plannedDate < today) {
+        newErrors[`plannedDate_${index}`] =
+          "Planned date cannot be in the past";
       }
     }
+  });
 
-    // Validate languages
-    formData.languages.forEach((lang, index) => {
-      if (!lang.language.trim()) {
-        newErrors[`language_${index}`] = "Language name is required";
-      } else if (lang.language.length > 30) {
-        newErrors[`language_${index}`] =
-          "Language name must be 30 characters or less";
-      } else if (!/^[a-zA-Z\s\-'\.]+$/.test(lang.language.trim())) {
-        newErrors[`language_${index}`] =
-          "Language name can only contain letters, spaces, hyphens, apostrophes, and periods";
+  // Validate social links
+  Object.entries(formData.socialLinks).forEach(([platform, url]) => {
+    if (url && url.trim()) {
+      try {
+        new URL(url);
+      } catch {
+        newErrors[
+          `socialLink_${platform}`
+        ] = `Please enter a valid ${platform} URL`;
       }
-    });
+    }
+  });
 
-    // Validate future destinations
-    formData.futureDestinations.forEach((dest, index) => {
-      if (!dest.destination.trim()) {
-        newErrors[`destination_${index}`] = "Destination name is required";
-      } else if (dest.destination.length > 100) {
-        newErrors[`destination_${index}`] =
-          "Destination name must be 100 characters or less";
-      }
-
-      // Validate coordinates if provided
-      if ((dest.lat && !dest.lng) || (!dest.lat && dest.lng)) {
-        newErrors[`coordinates_${index}`] =
-          "Both latitude and longitude are required";
-      }
-
-      if (dest.lat && (isNaN(dest.lat) || dest.lat < -90 || dest.lat > 90)) {
-        newErrors[`lat_${index}`] = "Latitude must be between -90 and 90";
-      }
-
-      if (dest.lng && (isNaN(dest.lng) || dest.lng < -180 || dest.lng > 180)) {
-        newErrors[`lng_${index}`] = "Longitude must be between -180 and 180";
-      }
-
-      // Validate planned date
-      if (dest.plannedDate) {
-        const plannedDate = new Date(dest.plannedDate);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        if (plannedDate < today) {
-          newErrors[`plannedDate_${index}`] =
-            "Planned date cannot be in the past";
-        }
-      }
-    });
-
-    // Validate social links
-    Object.entries(formData.socialLinks).forEach(([platform, url]) => {
-      if (url && url.trim()) {
-        try {
-          new URL(url);
-        } catch {
-          newErrors[
-            `socialLink_${platform}`
-          ] = `Please enter a valid ${platform} URL`;
-        }
-      }
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  setErrors(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -712,7 +721,7 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
                 <div className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-xl p-2 mr-3">
                   <Camera className="w-5 h-5 text-white" />
                 </div>
-                Profile Picture
+                Profile Picture *
               </h3>
 
               <div className="flex flex-col items-center space-y-4">
@@ -820,9 +829,9 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
 
                 <div>
                   <label className=" text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                    <Phone className="w-4 h-4 mr-2 text-green-600" />
-                    Mobile Number
-                  </label>
+  <Phone className="w-4 h-4 mr-2 text-green-600" />
+  Mobile Number *
+</label>
                   <input
                     type="tel"
                     value={formData.mobile}
@@ -894,9 +903,9 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
 
               <div className="mt-6">
                 <label className=" text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                  <FileText className="w-4 h-4 mr-2 text-indigo-600" />
-                  Bio
-                </label>
+  <FileText className="w-4 h-4 mr-2 text-indigo-600" />
+  Bio *
+</label>
                 <textarea
                   value={formData.bio}
                   onChange={(e) => handleInputChange("bio", e.target.value)}

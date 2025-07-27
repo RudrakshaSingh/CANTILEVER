@@ -138,6 +138,37 @@ const [activeTab, setActiveTab] = useState(defaultTab);
     return bio && bio.trim() && bio.trim().length > 0;
   };
 
+  // Helper function to get completion status with fallback
+  const getCompletionStatus = (field) => {
+    // If profileCompletion exists, use it; otherwise fallback to checking actual data
+    if (user.profileCompletion && user.profileCompletion[field] !== undefined) {
+      return user.profileCompletion[field];
+    }
+    
+    // Fallback logic for when profileCompletion is not available
+    switch (field) {
+      case 'basicInfo':
+        return !!(user.fullName && user.email);
+      case 'profilePicture':
+        return !!(user.profilePicture);
+      case 'bio':
+        return hasValidBio(user.bio);
+      case 'phoneNumber':
+        return isValidMobile(user.mobile);
+      case 'languages':
+        return !!(user.languages && user.languages.length > 0);
+      default:
+        return false;
+    }
+  };
+
+  // Calculate overall completion percentage
+  const calculateCompletionPercentage = () => {
+    const fields = ['basicInfo', 'profilePicture', 'bio', 'phoneNumber', 'languages'];
+    const completedFields = fields.filter(field => getCompletionStatus(field));
+    return Math.round((completedFields.length / fields.length) * 100);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
@@ -276,7 +307,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       <div className="text-center py-6">
                         <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                         <p className="text-gray-500 mb-2">No bio added yet</p>
-                        <button className="text-purple-600 hover:text-purple-700 font-medium text-sm">
+                        <button onClick={handleEditProfile} className="text-purple-600 hover:text-purple-700 font-medium text-sm">
                           + Add Bio
                         </button>
                       </div>
@@ -334,7 +365,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                             <div className="text-sm text-orange-600">
                               Mobile Number
                             </div>
-                            <button className="text-orange-700 hover:text-orange-800 font-medium text-sm">
+                            <button onClick={handleEditProfile} className="text-orange-700 hover:text-orange-800 font-medium text-sm">
                               + Add Phone Number
                             </button>
                           </div>
@@ -376,7 +407,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       <p className="text-gray-500 mb-4">
                         No languages added yet
                       </p>
-                      <button className="text-purple-600 hover:text-purple-700 font-medium">
+                      <button onClick={handleEditProfile} className="text-purple-600 hover:text-purple-700 font-medium">
                         + Add Languages
                       </button>
                     </div>
@@ -426,7 +457,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       <p className="text-gray-500 mb-4">
                         No social links added yet
                       </p>
-                      <button className="text-purple-600 hover:text-purple-700 font-medium">
+                      <button onClick={handleEditProfile} className="text-purple-600 hover:text-purple-700 font-medium">
                         + Add Social Links
                       </button>
                     </div>
@@ -495,7 +526,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       Add your future destinations to connect with travelers
                       going to the same places
                     </p>
-                    <button className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200">
+                    <button  className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200">
                       + Add Destination
                     </button>
                   </div>
@@ -563,52 +594,62 @@ const [activeTab, setActiveTab] = useState(defaultTab);
           <div className="space-y-6">
             {/* Profile Completion */}
             <div className="bg-white rounded-2xl shadow-lg p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Profile Completion
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Profile Completion
+                </h3>
+                <span className="text-sm font-medium text-purple-600">
+                  {calculateCompletionPercentage()}%
+                </span>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
+                <div 
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${calculateCompletionPercentage()}%` }}
+                ></div>
+              </div>
+
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Basic Info</span>
-                  <span className="font-semibold text-green-600">✓</span>
+                  <span className={`font-semibold ${
+                    getCompletionStatus('basicInfo') ? "text-green-600" : "text-orange-600"
+                  }`}>
+                    {getCompletionStatus('basicInfo') ? "✓" : "○"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Profile Picture</span>
-                  <span className="font-semibold text-green-600">✓</span>
+                  <span className={`font-semibold ${
+                    getCompletionStatus('profilePicture') ? "text-green-600" : "text-orange-600"
+                  }`}>
+                    {getCompletionStatus('profilePicture') ? "✓" : "○"}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Bio</span>
-                  <span
-                    className={`font-semibold ${
-                      hasValidBio(user.bio)
-                        ? "text-green-600"
-                        : "text-orange-600"
-                    }`}
-                  >
-                    {hasValidBio(user.bio) ? "✓" : "○"}
+                  <span className={`font-semibold ${
+                    getCompletionStatus('bio') ? "text-green-600" : "text-orange-600"
+                  }`}>
+                    {getCompletionStatus('bio') ? "✓" : "○"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Phone Number</span>
-                  <span
-                    className={`font-semibold ${
-                      isValidMobile(user.mobile)
-                        ? "text-green-600"
-                        : "text-orange-600"
-                    }`}
-                  >
-                    {isValidMobile(user.mobile) ? "✓" : "○"}
+                  <span className={`font-semibold ${
+                    getCompletionStatus('phoneNumber') ? "text-green-600" : "text-orange-600"
+                  }`}>
+                    {getCompletionStatus('phoneNumber') ? "✓" : "○"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Languages</span>
-                  <span
-                    className={`font-semibold ${
-                      user.languages?.length > 0
-                        ? "text-green-600"
-                        : "text-orange-600"
-                    }`}
-                  >
-                    {user.languages?.length > 0 ? "✓" : "○"}
+                  <span className={`font-semibold ${
+                    getCompletionStatus('languages') ? "text-green-600" : "text-orange-600"
+                  }`}>
+                    {getCompletionStatus('languages') ? "✓" : "○"}
                   </span>
                 </div>
               </div>
