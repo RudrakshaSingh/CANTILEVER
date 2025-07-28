@@ -34,6 +34,7 @@ export const getUserByFirebaseUid = asyncHandler(async (req, res) => {
   }
 
   let user = await User.findOne({ firebaseUid });
+
   if (!user) {
     // Create user if not found
     if (!fullName || !email) {
@@ -42,10 +43,23 @@ export const getUserByFirebaseUid = asyncHandler(async (req, res) => {
         "fullName and email are required to register new user"
       );
     }
-    user = await User.create({ fullName, email, firebaseUid });
+
+    user = await User.create({
+      fullName,
+      email,
+      firebaseUid,
+      online: true, // ✅ Set online to true on creation
+    });
+
     return res
       .status(201)
       .json(new ApiResponse(201, user, "User registered successfully"));
+  }
+
+  // ✅ User found — update online status
+  if (!user.online) {
+    user.online = true;
+    await user.save(); // Save only if changed
   }
 
   res.status(200).json(new ApiResponse(200, user, "User found successfully"));
@@ -195,6 +209,25 @@ export const updateUser = asyncHandler(async (req, res) => {
 
   await user.save();
   res.status(200).json(new ApiResponse(200, user, "User updated successfully"));
+});
+
+export const logoutUser = asyncHandler(async (req, res) => {
+  const { firebaseUid } = req.body;
+
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
+
+  const user = await User.findOne({ firebaseUid });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // ✅ Set online to false
+  user.online = false;
+  await user.save();
+
+  res.status(200).json(new ApiResponse(200, null, "User logged out successfully"));
 });
 
 // Helper function to update profile completion status

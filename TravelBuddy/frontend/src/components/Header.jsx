@@ -119,7 +119,7 @@ function Header() {
                   {/* Create Activity Button */}
                   <div className="relative hidden lg:block">
                     <a
-                      href="/create/activity"
+                      href="/activity/create"
                       className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
                     >
                       <Plus className="w-4 h-4" />

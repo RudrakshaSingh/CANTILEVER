@@ -116,6 +116,16 @@ const userSchema = new mongoose.Schema(
         default: false,
       },
     },
+    online: {
+      type: Boolean,
+      default: false,
+    },
+    activitiesJoined: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Activity",
+      },
+    ],
   },
   {
     timestamps: true,

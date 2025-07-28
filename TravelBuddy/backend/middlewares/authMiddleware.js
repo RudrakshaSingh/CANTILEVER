@@ -41,6 +41,7 @@ const authMiddleware = async (req, res, next) => {
 
     next();
   } catch {
+    
     throw new ApiError(401, "Invalid token");
   }
 };

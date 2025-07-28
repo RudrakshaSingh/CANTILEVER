@@ -2,6 +2,8 @@ import { configureStore } from "@reduxjs/toolkit";
 import { persistStore, persistReducer } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; // defaults to localStorage
 import userSliceReducer from "./Slices/UserSlice";
+import activitySliceReducer from "./Slices/ActivitySlice";
+
 
 // Persist configuration
 const persistConfig = {
@@ -14,6 +16,7 @@ const persistedUserReducer = persistReducer(persistConfig, userSliceReducer);
 const store = configureStore({
     reducer: {
         user: persistedUserReducer,
+        activity: activitySliceReducer,
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

@@ -6,6 +6,7 @@ import ForgotPassword from "./Pages/Users/ForgotPassword";
 import HomeLayout from "./components/HomeLayout";
 import ProtectedRoute from "./Helpers/ProtectedRoute";
 import UserProfile from "./Pages/Users/UserProfile";
+import CreateActivity from "./Pages/Activity/CreateActivity";
 
 function App() {
   return (
@@ -16,10 +17,12 @@ function App() {
         <Route path="/user/login" element={<UserLogin />} />
         <Route path="/user/forgot-password" element={<ForgotPassword />} />
 
-        <Route element={<ProtectedRoute allowedRoles={["user","admin"]} />}>
+        <Route element={<ProtectedRoute allowedRoles={["user", "admin"]} />}>
           <Route path="/user/profile" element={<UserProfile />} />
-
+          <Route path="/activity/create" element={<CreateActivity />} />
         </Route>
+
+        
       </Route>
       {/* Add more routes as needed */}
     </Routes>
