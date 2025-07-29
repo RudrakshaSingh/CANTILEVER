@@ -260,3 +260,23 @@ const updateProfileCompletion = (user) => {
     user.languages.some((lang) => lang.language && lang.proficiency)
   );
 };
+
+export const updateUserLocation = asyncHandler(async (req, res) => {
+  const { firebaseUid, lat, lng } = req.body;
+console.log("kkk");
+
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
+
+  const user = await User.findOne({ firebaseUid });
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  user.currentLocation.lat = lat;
+  user.currentLocation.lng = lng;
+  await user.save();
+
+  res.status(200).json(new ApiResponse(200, user, "User location updated successfully"));
+});

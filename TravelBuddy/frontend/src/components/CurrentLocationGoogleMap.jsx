@@ -1,6 +1,9 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { Loader, AlertCircle, RefreshCcw } from "lucide-react";
+import { Loader, AlertCircle, RefreshCcw, MapPin } from "lucide-react";
+import { updateUserLocation } from "../Redux/Slices/UserSlice"; // Adjust path as needed
 
 const mapContainerStyle = {
   width: "100%",
@@ -18,16 +21,32 @@ const mapOptions = {
 };
 
 const CurrentLocationGoogleMap = () => {
+  const dispatch = useDispatch();
+  const { user, loading } = useSelector((state) => state.user);
+
   const [currentLocation, setCurrentLocation] = useState(null);
   const [error, setError] = useState(null);
+  const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
 
   const { isLoaded, loadError } = useJsApiLoader({
     id: "google-map-script",
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
   });
 
+  // Function to update location in backend
+  const updateLocationInBackend = async (lat, lng) => {
+    if (!user) return;
+
+    setIsUpdatingLocation(true);
+    try {
+      await dispatch(updateUserLocation({ lat, lng })).unwrap();
+    } finally {
+      setIsUpdatingLocation(false);
+    }
+  };
+
   // Get current location
-  const getCurrentLocation = () => {
+  const getCurrentLocation = (updateBackend = true) => {
     if (!navigator.geolocation) {
       setError("Geolocation is not supported by this browser");
       return;
@@ -41,8 +60,12 @@ const CurrentLocationGoogleMap = () => {
         };
 
         setCurrentLocation(location);
-
         setError(null);
+
+        // Update location in backend if user is logged in and updateBackend is true
+        if (updateBackend && user) {
+          updateLocationInBackend(location.lat, location.lng);
+        }
       },
       (error) => {
         let errorMessage = "Unable to get your location";
@@ -70,12 +93,29 @@ const CurrentLocationGoogleMap = () => {
     );
   };
 
-  // Initial location and 30-second updates
+  // Initial location setup
   useEffect(() => {
     if (isLoaded) {
-      getCurrentLocation();
+      getCurrentLocation(true); // Update backend on initial load
     }
   }, [isLoaded]);
+
+  // Optional: Set up periodic location updates (uncomment if needed)
+
+  // useEffect(() => {
+  //   if (!isLoaded || !user) return;
+
+  //   const locationInterval = setInterval(() => {
+  //     getCurrentLocation(true);
+  //   }, 300000); // Update every 300 seconds
+
+  //   return () => clearInterval(locationInterval);
+  // }, [isLoaded, user]);
+
+  // Handle manual refresh
+  const handleRefreshLocation = () => {
+    getCurrentLocation(true); // Update backend when manually refreshed
+  };
 
   if (loadError) {
     return (
@@ -115,7 +155,7 @@ const CurrentLocationGoogleMap = () => {
           <p className="text-red-700 font-semibold text-lg">Location Error</p>
           <p className="text-red-600 text-sm max-w-md mb-4">{error}</p>
           <button
-            onClick={getCurrentLocation}
+            onClick={() => getCurrentLocation(false)} // Don't update backend on error retry
             className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
           >
             Try Again
@@ -127,24 +167,44 @@ const CurrentLocationGoogleMap = () => {
 
   return (
     <div className="relative w-full h-full">
-    <GoogleMap
-      mapContainerStyle={mapContainerStyle}
-      center={currentLocation}
-      options={mapOptions}
-    >
-      <Marker position={currentLocation} />
-    </GoogleMap>
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={currentLocation}
+        options={mapOptions}
+      >
+        <Marker position={currentLocation} />
+      </GoogleMap>
 
-    {/* Reload Button at Bottom Left */}
-    <button
-      onClick={getCurrentLocation}
-      className="absolute bottom-6 left-4 bg-white border border-gray-300 rounded-full p-2 shadow-md hover:bg-gray-100 transition z-10"
-      title="Reload Location"
-    >
-      <RefreshCcw className="w-5 h-5 text-blue-600" />
-    </button>
-  </div>
+      {/* Reload Button at Bottom Left */}
+      <button
+        onClick={handleRefreshLocation}
+        disabled={isUpdatingLocation || loading}
+        className={`absolute bottom-6 left-4 bg-white border border-gray-300 rounded-full p-2 shadow-md transition z-10 ${
+          isUpdatingLocation || loading
+            ? "opacity-50 cursor-not-allowed"
+            : "hover:bg-gray-100"
+        }`}
+        title="Reload Location"
+      >
+        <RefreshCcw
+          className={`w-5 h-5 text-blue-600 ${
+            isUpdatingLocation ? "animate-spin" : ""
+          }`}
+        />
+      </button>
 
+      
+
+      {/* User not logged in indicator */}
+      {!user && (
+        <div className="absolute top-4 right-4 z-10">
+          <div className="flex items-center space-x-2 px-3 py-2 rounded-full shadow-md text-sm bg-gray-100 text-gray-600 border border-gray-200">
+            <AlertCircle className="w-4 h-4" />
+            <span>Login to save location</span>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

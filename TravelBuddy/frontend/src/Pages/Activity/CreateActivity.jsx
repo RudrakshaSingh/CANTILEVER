@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
-import { LoadScript, Autocomplete } from '@react-google-maps/api';
+import { LoadScript, Autocomplete } from "@react-google-maps/api";
 import {
   Calendar,
   MapPin,
@@ -14,15 +14,13 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-import { createActivity } from "../../Redux/Slices/ActivitySlice";
+import { createActivity, clearError } from "../../Redux/Slices/ActivitySlice";
 
-const libraries = ['places'];
+const libraries = ["places"];
 
 const CreateActivity = () => {
   const dispatch = useDispatch();
-  const { loading: isCreating, error: reduxError } = useSelector(
-    (state) => state.activity
-  );
+  const { loading, error } = useSelector((state) => state.activity);
   const { user } = useSelector((state) => state.user);
 
   const [formData, setFormData] = useState({
@@ -42,16 +40,22 @@ const CreateActivity = () => {
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const autocompleteRef = useRef(null);
 
+  // Clear Redux error when form data changes
   useEffect(() => {
     if (
-      reduxError &&
-      Object.keys(formData).some((key) =>
-        typeof formData[key] === "string" ? formData[key].trim() : true
-      )
+      error &&
+      (formData.title.trim() ||
+        formData.description.trim() ||
+        formData.startDate ||
+        formData.time ||
+        formData.location.address.trim() ||
+        formData.maxParticipants ||
+        formData.location.coordinates[0] !== 0 ||
+        formData.location.coordinates[1] !== 0)
     ) {
-      // Clear Redux error when user makes changes
+      dispatch(clearError());
     }
-  }, [formData, reduxError]);
+  }, [formData, error, dispatch]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -203,6 +207,7 @@ const CreateActivity = () => {
 
     if (createActivity.fulfilled.match(result)) {
       resetForm();
+      toast.success("Form reset after successful submission!", { duration: 3000 });
     }
   };
 
@@ -221,6 +226,8 @@ const CreateActivity = () => {
     });
     setErrors({});
     setSubmitAttempted(false);
+    dispatch(clearError());
+    toast.success("Form reset successfully!", { duration: 3000 });
   };
 
   return (
@@ -244,14 +251,14 @@ const CreateActivity = () => {
             </div>
           </div>
 
-          {reduxError && submitAttempted && (
+          {error && submitAttempted && (
             <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-lg mb-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
                   <AlertCircle className="h-5 w-5 text-red-400" />
                 </div>
                 <div className="ml-3">
-                  <p className="text-sm text-red-700">{reduxError}</p>
+                  <p className="text-sm text-red-700">{error}</p>
                 </div>
               </div>
             </div>
@@ -275,7 +282,7 @@ const CreateActivity = () => {
                     type="text"
                     value={formData.title}
                     onChange={(e) => handleInputChange("title", e.target.value)}
-                    disabled={isCreating}
+                    disabled={loading}
                     className={`w-full px-4 py-4 bg-white/80 backdrop-blur-sm border-2 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                       errors.title
                         ? "border-red-400 bg-red-50/50"
@@ -301,7 +308,7 @@ const CreateActivity = () => {
                     onChange={(e) =>
                       handleInputChange("description", e.target.value)
                     }
-                    disabled={isCreating}
+                    disabled={loading}
                     className={`w-full px-4 py-4 bg-white/80 backdrop-blur-sm border-2 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300 resize-none disabled:opacity-50 disabled:cursor-not-allowed ${
                       errors.description
                         ? "border-red-400 bg-red-50/50"
@@ -336,7 +343,7 @@ const CreateActivity = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div>
-                  <label className=" text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                  <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                     <Calendar className="w-4 h-4 mr-2 text-blue-600" />
                     Start Date *
                   </label>
@@ -346,7 +353,7 @@ const CreateActivity = () => {
                     onChange={(e) =>
                       handleInputChange("startDate", e.target.value)
                     }
-                    disabled={isCreating}
+                    disabled={loading}
                     className={`w-full px-4 py-4 bg-white/80 backdrop-blur-sm border-2 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                       errors.startDate
                         ? "border-red-400 bg-red-50/50"
@@ -362,7 +369,7 @@ const CreateActivity = () => {
                 </div>
 
                 <div>
-                  <label className=" text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                  <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                     <Clock className="w-4 h-4 mr-2 text-orange-600" />
                     Time *
                   </label>
@@ -370,7 +377,7 @@ const CreateActivity = () => {
                     type="time"
                     value={formData.time}
                     onChange={(e) => handleInputChange("time", e.target.value)}
-                    disabled={isCreating}
+                    disabled={loading}
                     className={`w-full px-4 py-4 bg-white/80 backdrop-blur-sm border-2 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                       errors.time
                         ? "border-red-400 bg-red-50/50"
@@ -386,7 +393,7 @@ const CreateActivity = () => {
                 </div>
 
                 <div>
-                  <label className=" text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                  <label className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
                     <Users className="w-4 h-4 mr-2 text-purple-600" />
                     Max Participants *
                   </label>
@@ -396,7 +403,7 @@ const CreateActivity = () => {
                     onChange={(e) =>
                       handleInputChange("maxParticipants", e.target.value)
                     }
-                    disabled={isCreating}
+                    disabled={loading}
                     min="2"
                     max="1000"
                     className={`w-full px-4 py-4 bg-white/80 backdrop-blur-sm border-2 rounded-xl focus:ring-4 focus:ring-green-500/20 focus:border-green-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -441,7 +448,7 @@ const CreateActivity = () => {
                       onChange={(e) =>
                         handleInputChange("location.address", e.target.value)
                       }
-                      disabled={isCreating}
+                      disabled={loading}
                       className={`w-full px-4 py-4 bg-white/80 backdrop-blur-sm border-2 rounded-xl focus:ring-4 focus:ring-red-500/20 focus:border-red-500 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
                         errors.location
                           ? "border-red-400 bg-red-50/50"
@@ -484,7 +491,7 @@ const CreateActivity = () => {
                       onChange={(e) =>
                         handleInputChange("visibility", e.target.value)
                       }
-                      disabled={isCreating}
+                      disabled={loading}
                       className="w-5 h-5 text-green-600 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div className="ml-3">
@@ -511,7 +518,7 @@ const CreateActivity = () => {
                       onChange={(e) =>
                         handleInputChange("visibility", e.target.value)
                       }
-                      disabled={isCreating}
+                      disabled={loading}
                       className="w-5 h-5 text-purple-600 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                     <div className="ml-3">
@@ -535,17 +542,17 @@ const CreateActivity = () => {
                 <button
                   type="button"
                   onClick={resetForm}
-                  disabled={isCreating}
+                  disabled={loading}
                   className="px-8 py-4 text-gray-700 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-300 font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Reset Form
                 </button>
                 <button
                   type="submit"
-                  disabled={isCreating}
+                  disabled={loading}
                   className="px-12 py-4 bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 text-white rounded-xl font-semibold hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  {isCreating ? (
+                  {loading ? (
                     <>
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white mr-3"></div>
                       Creating Activity...

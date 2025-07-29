@@ -5,7 +5,8 @@ import {
   getProfile,
   updateUser, 
   deleteUser,
-  logoutUser
+  logoutUser,
+  updateUserLocation
 } from "../controllers/userController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/multermiddleware.js";
@@ -23,6 +24,7 @@ router.put(
 );
 router.post("/delete", deleteUser);
 router.post("/logout", authMiddleware,logoutUser);
+router.post("/update-location", authMiddleware, updateUserLocation);
 
 
 export default router;
