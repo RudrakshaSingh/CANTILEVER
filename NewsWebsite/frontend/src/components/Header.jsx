@@ -37,19 +37,18 @@ function Header() {
   const profileDropdownRef = useRef(null);
   const location = useLocation();
 
-  
-// Helper function to capitalize first letter of each word
-const capitalizeWords = (str) => {
-  if (!str) return '';
-  return str.split(' ').map(word => 
-    word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-  ).join(' ');
-};
+  // Helper function to capitalize first letter of each word
+  const capitalizeWords = (str) => {
+    if (!str) return "";
+    return str
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUserLoggedIn(user);
-      
     });
     return () => unsubscribe();
   }, []);
@@ -163,23 +162,25 @@ const capitalizeWords = (str) => {
 
   // Helper function to get active navigation item classes
   const getNavItemClasses = (href) => {
-    const baseClasses = "flex items-center space-x-1 px-4 py-2 text-1xl font-semibold transition-all duration-200";
-    
+    const baseClasses =
+      "flex items-center space-x-1 px-4 py-2 text-1xl font-semibold transition-all duration-200";
+
     if (isActive(href)) {
       return `${baseClasses} text-purple-600 shadow-lg shadow-purple-300/50 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg`;
     }
-    
+
     return `${baseClasses} text-gray-700 hover:text-purple-600`;
   };
 
   // Helper function to get mobile nav item classes
   const getMobileNavItemClasses = (href) => {
-    const baseClasses = "flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200";
-    
+    const baseClasses =
+      "flex items-center space-x-2 px-3 py-2 rounded-lg transition-all duration-200";
+
     if (isActive(href)) {
       return `${baseClasses} text-purple-600 bg-gradient-to-r from-purple-100 to-indigo-100 shadow-md shadow-purple-200/50 border-l-4 border-purple-600`;
     }
-    
+
     return `${baseClasses} text-gray-700 hover:text-purple-600 hover:bg-purple-50`;
   };
 
@@ -188,7 +189,10 @@ const capitalizeWords = (str) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo and Brand */}
-          <div onClick={() => navigate("/")} className="flex items-center space-x-3">
+          <div
+            onClick={() => navigate("/")}
+            className="flex items-center space-x-3"
+          >
             <div className="flex-shrink-0">
               <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center">
                 <Newspaper className="w-6 h-6 text-white" />
@@ -289,20 +293,14 @@ const capitalizeWords = (str) => {
                 {isProfileDropdownOpen && (
                   <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 py-2 z-50">
                     <div className="px-4 py-2 border-b border-gray-100">
-  <p className="text-sm font-medium text-gray-900">
-    {capitalizeWords(userLoggedIn.displayName)}
-  </p>
-  <p className="text-xs text-gray-500">
-    {userLoggedIn.email}
-  </p>
-</div>
-                    <Link
-                      to="/profile"
-                      className="flex items-center space-x-2 px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 transition-colors duration-150"
-                    >
-                      <UserPen className="w-4 h-4" />
-                      <span>Profile</span>
-                    </Link>
+                      <p className="text-sm font-medium text-gray-900">
+                        {capitalizeWords(userLoggedIn.displayName)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {userLoggedIn.email}
+                      </p>
+                    </div>
+
                     <button
                       onClick={handleLogout}
                       className="flex items-center space-x-2 w-full px-4 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors duration-150"

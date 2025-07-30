@@ -15,6 +15,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Header from "../components/Header";
+import Footer from "../components/Footer"; // Import Footer
 import { Link, useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../utils/firebaseConfig";
@@ -49,6 +50,16 @@ function Home() {
   const NEWS_API_BASE_URL =
     import.meta.env.VITE_NEWS_API_BASE_URL || "https://newsapi.org/v2";
   const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
+
+  // Scroll to top when loading is complete
+  useEffect(() => {
+    if (!loading) {
+      window.scrollTo({
+        top: 0,
+        behavior: "smooth", // Smooth scroll for better UX
+      });
+    }
+  }, [loading]);
 
   // Firebase auth state listener
   useEffect(() => {
@@ -337,9 +348,9 @@ function Home() {
 
   if (loading) {
     return (
-      <div>
+      <div className="flex flex-col min-h-screen">
         <Header />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex-grow flex items-center justify-center bg-gray-50">
           <div className="text-center">
             <RefreshCw className="h-20 w-20 animate-spin text-purple-600 mx-auto mb-4" />
             <p className="text-gray-800 text-lg">Loading latest news...</p>
@@ -348,6 +359,7 @@ function Home() {
             </p>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
@@ -371,9 +383,9 @@ function Home() {
   // Show error state if all requests failed
   if (errorCount >= 10) {
     return (
-      <div>
+      <div className="flex flex-col min-h-screen">
         <Header />
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex-grow flex items-center justify-center bg-gray-50">
           <div className="text-center max-w-md">
             <div className="bg-red-100 rounded-full p-4 mx-auto mb-4 w-fit">
               <svg
@@ -406,14 +418,15 @@ function Home() {
             </button>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="flex flex-col min-h-screen">
       <Header />
-      <div className="min-h-screen bg-gray-50">
+      <div className="flex-grow bg-gray-50">
         {/* Show partial error banner if some requests failed */}
         {errorCount > 0 && errorCount < 10 && (
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4">
@@ -731,6 +744,7 @@ function Home() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
