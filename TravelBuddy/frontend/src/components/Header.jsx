@@ -43,7 +43,7 @@ function Header() {
 
   const profileMenuItems = [
     { label: 'My Profile', href: '/user/profile', icon: User },
-    { label: 'My Adventures', href: '/trips', icon: Calendar },
+    { label: 'My Activities', href: '/activity/my', icon: Calendar },
     { label: 'Saved Places', href: '/saved', icon: Star },
     { label: 'Settings', href: '/user/profile?tab=settings', icon: Settings },
     { label: 'Help & Support', href: '/help', icon: null },

@@ -7,6 +7,7 @@ import HomeLayout from "./components/HomeLayout";
 import ProtectedRoute from "./Helpers/ProtectedRoute";
 import UserProfile from "./Pages/Users/UserProfile";
 import CreateActivity from "./Pages/Activity/CreateActivity";
+import MyActivities from "./Pages/Activity/MyActivities";
 
 function App() {
   return (
@@ -20,6 +21,9 @@ function App() {
         <Route element={<ProtectedRoute allowedRoles={["user", "admin"]} />}>
           <Route path="/user/profile" element={<UserProfile />} />
           <Route path="/activity/create" element={<CreateActivity />} />
+          <Route path="/activity/my" element={<MyActivities />} />
+
+          
         </Route>
 
         
