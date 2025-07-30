@@ -12,7 +12,8 @@ import {
   LogOut,
   Eye,
   EyeOff,
-  Plus
+  Plus,
+  Edit3,
 } from "lucide-react";
 import {
   getMyActivities,
@@ -21,6 +22,7 @@ import {
   clearError,
 } from "../../Redux/Slices/ActivitySlice";
 import { Link } from "react-router-dom";
+import UpdateActivityModal from "../../components/UpdateActivityModal";
 
 const MyActivities = () => {
   const dispatch = useDispatch();
@@ -28,6 +30,8 @@ const MyActivities = () => {
   const { activities, loading, error } = useSelector((state) => state.activity);
 
   const [fetchAttempted, setFetchAttempted] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState(null);
 
   // Fetch activities when component mounts
   useEffect(() => {
@@ -53,7 +57,19 @@ const MyActivities = () => {
 
   // Handle Leave Activity
   const handleLeaveActivity = async (activityId) => {
-    await dispatch(leaveActivity({ activityId })).unwrap();
+    try {
+      await dispatch(leaveActivity({ activityId })).unwrap();
+      // Re-fetch activities to update the state
+      await dispatch(getMyActivities()).unwrap();
+    } catch (error) {
+      // Error is handled by Redux slice via toast
+    }
+  };
+
+  // Handle Edit Activity
+  const handleEditActivity = (activity) => {
+    setSelectedActivity(activity);
+    setIsEditModalOpen(true);
   };
 
   // Format date for display
@@ -72,7 +88,11 @@ const MyActivities = () => {
     activities?.filter(
       (activity) =>
         activity.creator?._id !== user?._id &&
-        activity.participantsList.some((p) => p.user._id === user?._id)
+        activity.participantsList.some((p) =>
+          typeof p.user === "string"
+            ? p.user === user?._id
+            : p.user._id === user?._id
+        )
     ) || [];
 
   return (
@@ -116,7 +136,7 @@ const MyActivities = () => {
         )}
 
         {/* Activities Sections */}
-        {!loading && fetchAttempted && (
+        {fetchAttempted && (
           <div className="space-y-12">
             {/* Created Activities Section */}
             <div>
@@ -189,6 +209,14 @@ const MyActivities = () => {
 
                       {/* Action Buttons */}
                       <div className="flex justify-end space-x-3 mt-4">
+                        <button
+                          onClick={() => handleEditActivity(activity)}
+                          className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center"
+                          disabled={loading}
+                        >
+                          <Edit3 className="w-4 h-4 mr-2" />
+                          Edit
+                        </button>
                         <button
                           onClick={() => handleDeleteActivity(activity._id)}
                           className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-all duration-200 flex items-center"
@@ -289,7 +317,7 @@ const MyActivities = () => {
                           </span>
                         </div>
                         <div className="flex items-center text-gray-600">
-                          <User className="w-4 h-4 mr-2 text-indigo-600" />
+                          <Users className="w-4 h-4 mr-2 text-indigo-600" />
                           <span className="text-sm">
                             Created by {activity.creator?.fullName || "Unknown"}
                           </span>
@@ -332,6 +360,13 @@ const MyActivities = () => {
           </div>
         )}
       </div>
+
+      {/* Update Activity Modal */}
+      <UpdateActivityModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        activity={selectedActivity}
+      />
     </div>
   );
 };

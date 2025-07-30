@@ -263,7 +263,6 @@ const updateProfileCompletion = (user) => {
 
 export const updateUserLocation = asyncHandler(async (req, res) => {
   const { firebaseUid, lat, lng } = req.body;
-console.log("kkk");
 
   if (!firebaseUid) {
     throw new ApiError(400, "Firebase UID is required");

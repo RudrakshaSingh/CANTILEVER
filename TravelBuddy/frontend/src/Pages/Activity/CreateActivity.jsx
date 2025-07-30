@@ -207,7 +207,6 @@ const CreateActivity = () => {
 
     if (createActivity.fulfilled.match(result)) {
       resetForm();
-      toast.success("Form reset after successful submission!", { duration: 3000 });
     }
   };
 
@@ -227,7 +226,6 @@ const CreateActivity = () => {
     setErrors({});
     setSubmitAttempted(false);
     dispatch(clearError());
-    toast.success("Form reset successfully!", { duration: 3000 });
   };
 
   return (

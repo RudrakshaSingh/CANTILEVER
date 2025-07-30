@@ -3,6 +3,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import ApiError from "../utils/ApiError.js";
 import User from "../models/userModel.js";
 import Activity from "../models/activityModel.js";
+import mongoose from "mongoose";
 
 export const createActivity = asyncHandler(async (req, res) => {
   const {
@@ -102,6 +103,7 @@ export const createActivity = asyncHandler(async (req, res) => {
 });
 
 export const updateActivity = asyncHandler(async (req, res) => {
+  const { activityId } = req.params;
   const {
     firebaseUid,
     title,
@@ -110,7 +112,7 @@ export const updateActivity = asyncHandler(async (req, res) => {
     time,
     location,
     maxParticipants,
-    visibility,activityId
+    visibility,
   } = req.body;
 
   // Validate Firebase UID
@@ -174,6 +176,8 @@ export const updateActivity = asyncHandler(async (req, res) => {
       );
     }
   }
+  console.log("uhbvurug", req.body);
+
   if (visibility && !["Public", "Private"].includes(visibility)) {
     throw new ApiError(400, "Visibility must be either 'Public' or 'Private'");
   }
@@ -245,28 +249,12 @@ export const updateActivity = asyncHandler(async (req, res) => {
 });
 
 export const findNearbyActivities = asyncHandler(async (req, res) => {
-  const { firebaseUid, lat, lng, radius } = req.body;
+  const { firebaseUid, searchType, lat, lng, radius, name } = req.body;
 
   // Validate Firebase UID
   if (!firebaseUid) {
     throw new ApiError(400, "Firebase UID is required");
   }
-
-  // Validate coordinates
-  if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
-    throw new ApiError(400, "Valid latitude and longitude are required");
-  }
-  const latitude = parseFloat(lat);
-  const longitude = parseFloat(lng);
-  if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-    throw new ApiError(400, "Invalid coordinates: latitude must be -90 to 90, longitude -180 to 180");
-  }
-
-  // Validate radius
-  if (!radius || isNaN(radius) || parseFloat(radius) <= 0) {
-    throw new ApiError(400, "Valid radius (in meters) is required");
-  }
-  const maxDistance = parseFloat(radius);
 
   // Find user by Firebase UID
   const user = await User.findOne({ firebaseUid }).select("_id");
@@ -274,21 +262,82 @@ export const findNearbyActivities = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
-  // Find nearby activities, excluding those created by the user
-  const activities = await Activity.find({
-    "location.coordinates": {
-      $nearSphere: {
-        $geometry: {
-          type: "Point",
-          coordinates: [longitude, latitude],
+  // Validate searchType
+  if (!["userLocation", "placeLocation", "activityName"].includes(searchType)) {
+    throw new ApiError(
+      400,
+      "Invalid search type. Must be 'userLocation', 'placeLocation', or 'activityName'"
+    );
+  }
+
+  let activities = [];
+
+  if (searchType === "activityName") {
+    // Validate name for activityName search
+    if (!name || !name.trim()) {
+      throw new ApiError(
+        400,
+        "Activity name is required for name-based search"
+      );
+    }
+
+    // Search by activity name (case-insensitive)
+    activities = await Activity.find({
+      title: { $regex: name.trim(), $options: "i" },
+      creator: { $ne: user._id }, // Exclude activities created by the user
+    })
+      .populate("creator", "fullName")
+      .select(
+        "title description startDate time location maxParticipants participantsList visibility"
+      );
+  } else {
+    // Validate coordinates and radius for location-based searches
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      throw new ApiError(
+        400,
+        "Valid latitude and longitude are required for location-based search"
+      );
+    }
+    const latitude = parseFloat(lat);
+    const longitude = parseFloat(lng);
+    if (
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      throw new ApiError(
+        400,
+        "Invalid coordinates: latitude must be -90 to 90, longitude -180 to 180"
+      );
+    }
+
+    if (!radius || isNaN(radius) || parseFloat(radius) <= 0) {
+      throw new ApiError(
+        400,
+        "Valid radius (in meters) is required for location-based search"
+      );
+    }
+    const maxDistance = parseFloat(radius);
+
+    // Find nearby activities
+    activities = await Activity.find({
+      "location.coordinates": {
+        $nearSphere: {
+          $geometry: {
+            type: "Point",
+            coordinates: [longitude, latitude],
+          },
+          $maxDistance: maxDistance,
         },
-        $maxDistance: maxDistance,
       },
-    },
-    creator: { $ne: user._id }, // Exclude activities created by the user
-  })
-    .populate("creator", "fullName")
-    .select("title description startDate time location maxParticipants participantsList visibility");
+      creator: { $ne: user._id }, // Exclude activities created by the user
+    })
+      .populate("creator", "fullName")
+      .select(
+        "title description startDate time location maxParticipants participantsList visibility"
+      );
+  }
 
   return res
     .status(200)
@@ -297,14 +346,14 @@ export const findNearbyActivities = asyncHandler(async (req, res) => {
         200,
         activities,
         activities.length > 0
-          ? "Nearby activities found successfully"
-          : "No nearby activities found"
+          ? "Activities found successfully"
+          : "No activities found"
       )
     );
 });
 
 export const joinActivity = asyncHandler(async (req, res) => {
-  const { firebaseUid,activityId } = req.body;
+  const { firebaseUid, activityId } = req.body;
 
   // Validate inputs
   if (!firebaseUid) {
@@ -315,7 +364,9 @@ export const joinActivity = asyncHandler(async (req, res) => {
   }
 
   // Find user by Firebase UID
-  const user = await User.findOne({ firebaseUid }).select("_id activitiesJoined");
+  const user = await User.findOne({ firebaseUid }).select(
+    "_id activitiesJoined"
+  );
   if (!user) {
     throw new ApiError(404, "User not found");
   }
@@ -331,7 +382,10 @@ export const joinActivity = asyncHandler(async (req, res) => {
 
   // Check if activity is public
   if (activity.visibility !== "Public") {
-    throw new ApiError(403, "This activity is private and cannot be joined directly");
+    throw new ApiError(
+      403,
+      "This activity is private and cannot be joined directly"
+    );
   }
 
   // Check if activity is in the future
@@ -340,17 +394,16 @@ export const joinActivity = asyncHandler(async (req, res) => {
   }
 
   // Check if user is already a participant
-  if (
-    activity.participantsList.some((p) => p.user.equals(user._id))
-  ) {
+  if (activity.participantsList.some((p) => p.user.equals(user._id))) {
     throw new ApiError(400, "User is already a participant in this activity");
   }
 
   // Check if activity is full
-  if (
-    activity.participantsList.length >= activity.maxParticipants
-  ) {
-    throw new ApiError(400, "Activity is full and cannot accept more participants");
+  if (activity.participantsList.length >= activity.maxParticipants) {
+    throw new ApiError(
+      400,
+      "Activity is full and cannot accept more participants"
+    );
   }
 
   // Add user to activity
@@ -370,7 +423,7 @@ export const joinActivity = asyncHandler(async (req, res) => {
 });
 
 export const addUserToActivity = asyncHandler(async (req, res) => {
-  const { creatorFirebaseUid, userFirebaseUid,activityId } = req.body;
+  const { creatorFirebaseUid, userFirebaseUid, activityId } = req.body;
 
   // Validate inputs
   if (!creatorFirebaseUid) {
@@ -384,9 +437,9 @@ export const addUserToActivity = asyncHandler(async (req, res) => {
   }
 
   // Find creator by Firebase UID
-  const creator = await User.findOne({ firebaseUid: creatorFirebaseUid }).select(
-    "_id"
-  );
+  const creator = await User.findOne({
+    firebaseUid: creatorFirebaseUid,
+  }).select("_id");
   if (!creator) {
     throw new ApiError(404, "Creator not found");
   }
@@ -424,19 +477,16 @@ export const addUserToActivity = asyncHandler(async (req, res) => {
   }
 
   // Check if user is already a participant
-  if (
-    activity.participantsList.some((p) =>
-      p.user.equals(userToAdd._id)
-    )
-  ) {
+  if (activity.participantsList.some((p) => p.user.equals(userToAdd._id))) {
     throw new ApiError(400, "User is already a participant in this activity");
   }
 
   // Check if activity is full
-  if (
-    activity.participantsList.length >= activity.maxParticipants
-  ) {
-    throw new ApiError(400, "Activity is full and cannot accept more participants");
+  if (activity.participantsList.length >= activity.maxParticipants) {
+    throw new ApiError(
+      400,
+      "Activity is full and cannot accept more participants"
+    );
   }
 
   // Add user to activity
@@ -453,16 +503,13 @@ export const addUserToActivity = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(
-      new ApiResponse(
-        200,
-        activity,
-        `User successfully added to the activity`
-      )
+      new ApiResponse(200, activity, `User successfully added to the activity`)
     );
 });
 
 export const deleteActivity = asyncHandler(async (req, res) => {
-  const { firebaseUid,activityId } = req.body;
+  const { firebaseUid, activityId } = req.body;
+  console.log("del", req.body);
 
   // Validate inputs
   if (!firebaseUid) {
@@ -486,7 +533,10 @@ export const deleteActivity = asyncHandler(async (req, res) => {
 
   // Verify creator
   if (!activity.creator.equals(user._id)) {
-    throw new ApiError(403, "Only the activity creator can delete this activity");
+    throw new ApiError(
+      403,
+      "Only the activity creator can delete this activity"
+    );
   }
 
   // Start a transaction to ensure atomicity
@@ -521,7 +571,8 @@ export const deleteActivity = asyncHandler(async (req, res) => {
 });
 
 export const leaveActivity = asyncHandler(async (req, res) => {
-  const { firebaseUid ,activityId} = req.body;
+  const { activityId } = req.params;
+  const { firebaseUid } = req.body;
 
   // Validate inputs
   if (!firebaseUid) {
@@ -532,13 +583,18 @@ export const leaveActivity = asyncHandler(async (req, res) => {
   }
 
   // Find user by Firebase UID
-  const user = await User.findOne({ firebaseUid }).select("_id activitiesJoined");
+  const user = await User.findOne({ firebaseUid }).select(
+    "_id activitiesJoined"
+  );
   if (!user) {
     throw new ApiError(404, "User not found");
   }
 
   // Find activity
-  const activity = await Activity.findById(activityId).populate("creator", "fullName");
+  const activity = await Activity.findById(activityId).populate(
+    "creator",
+    "fullName"
+  );
   if (!activity) {
     throw new ApiError(404, "Activity not found");
   }
@@ -611,7 +667,6 @@ export const myActivities = asyncHandler(async (req, res) => {
     .select(
       "title description startDate time location maxParticipants participantsList visibility"
     );
-
   return res
     .status(200)
     .json(

@@ -8,6 +8,8 @@ import ProtectedRoute from "./Helpers/ProtectedRoute";
 import UserProfile from "./Pages/Users/UserProfile";
 import CreateActivity from "./Pages/Activity/CreateActivity";
 import MyActivities from "./Pages/Activity/MyActivities";
+import DiscoverOtherTravellerNearYou from "./Pages/Users/DiscoverOtherTravellerNearYou";
+import FindNearbyActivities from "./Pages/Activity/FindNearbyActivities";
 
 function App() {
   return (
@@ -22,6 +24,10 @@ function App() {
           <Route path="/user/profile" element={<UserProfile />} />
           <Route path="/activity/create" element={<CreateActivity />} />
           <Route path="/activity/my" element={<MyActivities />} />
+          <Route path="/discover" element={<DiscoverOtherTravellerNearYou />} />
+          <Route path="/activity/nearby" element={<FindNearbyActivities />} />
+
+
 
           
         </Route>

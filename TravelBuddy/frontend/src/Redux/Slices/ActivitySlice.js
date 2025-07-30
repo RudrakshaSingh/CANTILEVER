@@ -233,7 +233,10 @@ export const updateActivity = createAsyncThunk(
 // Find Nearby Activities
 export const findNearbyActivities = createAsyncThunk(
   "activity/findNearbyActivities",
-  async ({ lat, lng, radius }, { rejectWithValue, getState, dispatch }) => {
+  async (
+    { firebaseUid, searchType, lat, lng, radius, name },
+    { rejectWithValue, getState, dispatch }
+  ) => {
     try {
       const { user: currentUser, accessToken } = getState().user;
 
@@ -243,24 +246,44 @@ export const findNearbyActivities = createAsyncThunk(
         return rejectWithValue({ message: errorMessage, isAuthError: true });
       }
 
-      if (!lat || !lng || !radius) {
-        const errorMessage = "Latitude, longitude, and radius are required.";
+      if (!firebaseUid) {
+        const errorMessage = "Firebase UID is required.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage });
+      }
+
+      if (searchType !== "activityName" && (!lat || !lng || !radius)) {
+        const errorMessage =
+          "Latitude, longitude, and radius are required for location-based search.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage });
+      }
+
+      if (searchType === "activityName" && (!name || !name.trim())) {
+        const errorMessage = "Activity name is required for name-based search.";
         toast.error(errorMessage);
         return rejectWithValue({ message: errorMessage });
       }
 
       try {
-        const response = await axiosInstance.post(
-          "/activity/nearby",
-          { firebaseUid: currentUser.firebaseUid, lat, lng, radius },
-          { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
+        const payload = { firebaseUid, searchType };
+        if (searchType !== "activityName") {
+          payload.lat = parseFloat(lat);
+          payload.lng = parseFloat(lng);
+          payload.radius = parseFloat(radius);
+        } else {
+          payload.name = name.trim();
+        }
+
+        const response = await axiosInstance.post("/activity/nearby", payload, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
 
         const activities = response.data.data;
         toast.success(
           activities.length > 0
-            ? "Nearby activities found successfully!"
-            : "No nearby activities found.",
+            ? "Activities found successfully!"
+            : "No activities found.",
           { duration: 3000 }
         );
         return { activities };
@@ -280,9 +303,7 @@ export const findNearbyActivities = createAsyncThunk(
             dispatch(setAccessToken(refreshResult.newToken));
             toast.error(
               "Session refreshed. Please try searching for activities again.",
-              {
-                duration: 4000,
-              }
+              { duration: 4000 }
             );
             return rejectWithValue({
               message:
@@ -301,8 +322,7 @@ export const findNearbyActivities = createAsyncThunk(
           }
         } else {
           let userFriendlyMessage =
-            errorMessage ||
-            "Failed to find nearby activities. Please try again.";
+            errorMessage || "Failed to find activities. Please try again.";
           toast.error(userFriendlyMessage);
           return rejectWithValue({
             message: userFriendlyMessage,
@@ -608,86 +628,50 @@ export const leaveActivity = createAsyncThunk(
   "activity/leaveActivity",
   async ({ activityId }, { rejectWithValue, getState, dispatch }) => {
     try {
-      const { user: currentUser, accessToken } = getState().user;
+      const { user, accessToken } = getState().user;
 
-      if (!currentUser || !accessToken) {
+      if (!user || !accessToken) {
         const errorMessage = "No authenticated user found.";
         toast.error(errorMessage);
         return rejectWithValue({ message: errorMessage, isAuthError: true });
       }
 
-      if (!activityId) {
-        const errorMessage = "Activity ID is required.";
-        toast.error(errorMessage);
-        return rejectWithValue({ message: errorMessage });
-      }
+      const response = await axiosInstance.post(
+        `/activity/leave/${activityId}`,
+        { firebaseUid: user.firebaseUid },
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
 
-      try {
-        await axiosInstance.post(
-          "/activity/leave",
-          { firebaseUid: currentUser.firebaseUid, activityId },
-          { headers: { Authorization: `Bearer ${accessToken}` } }
+      toast.success("Successfully left the activity!", { duration: 3000 });
+      return { activity: response.data.data }; // Expect backend to return updated activity
+    } catch (error) {
+      console.error("Leave activity error:", error);
+      const errorMessage = error.response?.data?.message || "Failed to leave activity. Please try again.";
+      const errorStatus = error.response?.status;
+
+      if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
+        const refreshResult = await handleTokenRefresh(
+          dispatch,
+          clearUser,
+          setAccessToken
         );
 
-        toast.success("Successfully left the activity!", { duration: 3000 });
-        return { activityId };
-      } catch (error) {
-        console.error("Leave activity error:", error);
-        const errorMessage = error.response?.data?.message;
-        const errorStatus = error.response?.status;
-
-        if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
-          const refreshResult = await handleTokenRefresh(
-            dispatch,
-            clearUser,
-            setAccessToken
-          );
-
-          if (refreshResult.success) {
-            dispatch(setAccessToken(refreshResult.newToken));
-            toast.error(
-              "Session refreshed. Please try leaving the activity again.",
-              {
-                duration: 4000,
-              }
-            );
-            return rejectWithValue({
-              message:
-                "Session refreshed. Please try leaving the activity again.",
-            });
-          } else {
-            toast.error("Session expired. Please login again.");
-            dispatch(clearUser());
-            setTimeout(() => {
-              redirectToLogin();
-            }, 1000);
-            return rejectWithValue({
-              message: refreshResult.message,
-              isAuthError: true,
-            });
-          }
+        if (refreshResult.success) {
+          dispatch(setAccessToken(refreshResult.newToken));
+          toast.error("Session refreshed. Please try leaving again.", { duration: 4000 });
+          return rejectWithValue({ message: "Session refreshed. Please try leaving again." });
         } else {
-          let userFriendlyMessage =
-            errorMessage || "Failed to leave activity. Please try again.";
-          toast.error(userFriendlyMessage);
-          return rejectWithValue({
-            message: userFriendlyMessage,
-            originalError: errorMessage,
-            status: errorStatus,
-          });
+          toast.error("Session expired. Please login again.");
+          dispatch(clearUser());
+          setTimeout(() => {
+            redirectToLogin();
+          }, 1000);
+          return rejectWithValue({ message: refreshResult.message, isAuthError: true });
         }
+      } else {
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage, status: errorStatus });
       }
-    } catch (error) {
-      console.error("Unexpected leave activity error:", error);
-      let errorMessage = "An unexpected error occurred. Please try again.";
-      if (error.name === "NetworkError" || error.message.includes("network")) {
-        errorMessage =
-          "Network error. Please check your connection and try again.";
-      } else if (error.message.includes("timeout")) {
-        errorMessage = "Request timeout. Please try again.";
-      }
-      toast.error(errorMessage);
-      return rejectWithValue({ message: errorMessage });
     }
   }
 );
@@ -853,15 +837,14 @@ const activitySlice = createSlice({
       })
       .addCase(findNearbyActivities.fulfilled, (state, action) => {
         state.loading = false;
-        state.activities = action.payload.activities || [];
+        state.nearbyActivities = action.payload.activities || [];
       })
       .addCase(findNearbyActivities.rejected, (state, action) => {
         state.loading = false;
         if (action.payload?.isAuthError === true) {
           state.error = null;
         } else {
-          state.error =
-            action.payload?.message || "Failed to find nearby activities";
+          state.error = action.payload?.message || "Failed to find activities";
         }
       })
       // Join Activity
@@ -971,28 +954,16 @@ const activitySlice = createSlice({
       })
       .addCase(leaveActivity.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.activityId) {
-          if (state.activities) {
-            const index = state.activities.findIndex(
-              (act) => act._id === action.payload.activityId
-            );
-            if (index !== -1) {
-              state.activities[index].participantsList = state.activities[
-                index
-              ].participantsList.filter((p) => !p.user.equals(state.user?._id));
-            }
-          }
-          if (state.singleActivity?._id === action.payload.activityId) {
-            state.singleActivity.participantsList =
-              state.singleActivity.participantsList.filter(
-                (p) => !p.user.equals(state.user?._id)
-              );
-          }
+        if (action.payload.activity && state.activities) {
+          // Remove the activity from activities if the user is no longer a participant
+          state.activities = state.activities.filter(
+            (act) => act._id !== action.payload.activity._id
+          );
         }
       })
       .addCase(leaveActivity.rejected, (state, action) => {
         state.loading = false;
-        if (action.payload?.isAuthError === true) {
+        if (action.payload?.isAuthError) {
           state.error = null;
         } else {
           state.error = action.payload?.message || "Failed to leave activity";
