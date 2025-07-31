@@ -57,13 +57,9 @@ const MyActivities = () => {
 
   // Handle Leave Activity
   const handleLeaveActivity = async (activityId) => {
-    try {
-      await dispatch(leaveActivity({ activityId })).unwrap();
-      // Re-fetch activities to update the state
-      await dispatch(getMyActivities()).unwrap();
-    } catch (error) {
-      // Error is handled by Redux slice via toast
-    }
+    await dispatch(leaveActivity({ activityId })).unwrap();
+    // Re-fetch activities to update the state
+    await dispatch(getMyActivities()).unwrap();
   };
 
   // Handle Edit Activity

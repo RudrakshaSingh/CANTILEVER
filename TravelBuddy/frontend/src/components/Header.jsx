@@ -36,7 +36,7 @@ function Header() {
   
   const navigationItems = [
     { label: 'Discover Travelers', href: '/discover', icon: Users },
-    { label: 'Find Activities', href: '/activities', icon: Calendar },
+    { label: 'Find Activities', href: '/activity/nearby', icon: Calendar },
     { label: 'Destinations', href: '/destinations', icon: MapPin },
     ...(user ? [{ label: 'Messages', href: '/messages', icon: MessageCircle, badge: 2 }] : [])
   ];
