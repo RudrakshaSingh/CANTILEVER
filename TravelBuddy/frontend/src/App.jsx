@@ -10,6 +10,8 @@ import CreateActivity from "./Pages/Activity/CreateActivity";
 import MyActivities from "./Pages/Activity/MyActivities";
 import DiscoverOtherTravellerNearYou from "./Pages/Users/DiscoverOtherTravellerNearYou";
 import FindNearbyActivities from "./Pages/Activity/FindNearbyActivities";
+import SingleActivity from "./Pages/Activity/SingleActivity";
+import Error from "./Pages/Error";
 
 function App() {
   return (
@@ -26,15 +28,11 @@ function App() {
           <Route path="/activity/my" element={<MyActivities />} />
           <Route path="/discover" element={<DiscoverOtherTravellerNearYou />} />
           <Route path="/activity/nearby" element={<FindNearbyActivities />} />
-
-
-
-          
+          <Route path="/activity/:activityId" element={<SingleActivity />} />
         </Route>
-
-        
       </Route>
-      {/* Add more routes as needed */}
+
+      <Route path="*" element={<Error />} />
     </Routes>
   );
 }
