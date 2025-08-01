@@ -9,6 +9,7 @@ import {
   deleteActivity,
   leaveActivity,
   myActivities,
+  getSingleActivity,
 } from "../controllers/activityController.js";
 import upload from "../middlewares/multermiddleware.js";
 
@@ -37,5 +38,8 @@ router.post("/leave/:activityId", authMiddleware, leaveActivity);
 
 // Get activities user has joined or created (JSON)
 router.post("/my-activities", authMiddleware, myActivities);
+
+// Route to get a single activity by ID
+router.post("/single-activity/:activityId", getSingleActivity);
 
 export default router;

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
-import { GoogleMap, Marker, Autocomplete } from "@react-google-maps/api";
+import { GoogleMap, Marker } from "@react-google-maps/api";
 import {
   Calendar,
   MapPin,
@@ -9,12 +9,12 @@ import {
   AlertCircle,
   Search,
   Navigation,
-  Plus,
   Loader2,
+  Check,
 } from "lucide-react";
+import { Link, useLocation } from "react-router-dom"; // Added Link for navigation
 import {
   findNearbyActivities,
-  joinActivity,
   clearError,
 } from "../../Redux/Slices/ActivitySlice";
 
@@ -29,6 +29,7 @@ const FindNearbyActivities = () => {
   const { nearbyActivities, loading, error } = useSelector(
     (state) => state.activity
   );
+  const location = useLocation(); // For scroll-to-top
 
   const [searchType, setSearchType] = useState("userLocation");
   const [formData, setFormData] = useState({
@@ -42,7 +43,12 @@ const FindNearbyActivities = () => {
   const [center, setCenter] = useState({ lat: 28.6139, lng: 77.209 }); // Default: Delhi
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showList, setShowList] = useState(false);
-  const autocompleteRef = useRef(null);
+  const placeAutocompleteRef = useRef(null);
+
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   // Clear Redux error when form data changes
   useEffect(() => {
@@ -54,44 +60,51 @@ const FindNearbyActivities = () => {
     }
   }, [formData, error, dispatch]);
 
+  // Handle Google Maps PlaceAutocompleteElement
+  useEffect(() => {
+    if (placeAutocompleteRef.current) {
+      placeAutocompleteRef.current.addEventListener("gmp-placeselect", () => {
+        const place = placeAutocompleteRef.current.place;
+        if (place && place.geometry) {
+          const latitude = place.geometry.location.lat();
+          const longitude = place.geometry.location.lng();
+          setFormData((prev) => ({
+            ...prev,
+            lat: latitude.toString(),
+            lng: longitude.toString(),
+          }));
+          setCenter({ lat: latitude, lng: longitude });
+          setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
+        } else {
+          toast.error("Please select a valid address from the suggestions.");
+        }
+      });
+    }
+  }, [placeAutocompleteRef]);
+
   // Get user location for userLocation search
   const handleGetUserLocation = () => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((position) => {
-        setFormData((prev) => ({
-          ...prev,
-          lat: position.coords.latitude.toString(),
-          lng: position.coords.longitude.toString(),
-          radius: formData.radius || "5", // Default to 5 km
-        }));
-        setCenter({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
-      });
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFormData((prev) => ({
+            ...prev,
+            lat: position.coords.latitude.toString(),
+            lng: position.coords.longitude.toString(),
+            radius: formData.radius || "5", // Default to 5 km
+          }));
+          setCenter({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
+        },
+        (err) => {
+          toast.error("Failed to get location: " + err.message);
+        }
+      );
     } else {
       toast.error("Geolocation is not supported by your browser.");
-    }
-  };
-
-  // Handle place selection from Autocomplete
-  const handlePlaceSelect = () => {
-    if (autocompleteRef.current) {
-      const place = autocompleteRef.current.getPlace();
-      if (place.geometry) {
-        const latitude = place.geometry.location.lat();
-        const longitude = place.geometry.location.lng();
-        setFormData((prev) => ({
-          ...prev,
-          lat: latitude.toString(),
-          lng: longitude.toString(),
-        }));
-        setCenter({ lat: latitude, lng: longitude });
-        setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
-      } else {
-        toast.error("Please select a valid address from the suggestions.");
-      }
     }
   };
 
@@ -189,15 +202,13 @@ const FindNearbyActivities = () => {
       ...(searchType === "activityName" && { name: formData.name.trim() }),
     };
 
-    await dispatch(findNearbyActivities(payload)).unwrap();
-    setSelectedActivity(null);
-    setShowList(true);
-  };
-
-  // Handle joining an activity
-  const handleJoinActivity = async (activityId) => {
-    await dispatch(joinActivity({ activityId })).unwrap();
-    toast.success("Successfully joined the activity!", { duration: 3000 });
+    try {
+      await dispatch(findNearbyActivities(payload)).unwrap();
+      setSelectedActivity(null);
+      setShowList(true);
+    } catch (err) {
+      toast.error(err.message || "Failed to search activities");
+    }
   };
 
   // Format date for display
@@ -302,30 +313,28 @@ const FindNearbyActivities = () => {
                 </div>
               ) : searchType === "placeLocation" ? (
                 <div className="relative">
-                  <Autocomplete
-                    onLoad={(autocomplete) => {
-                      autocompleteRef.current = autocomplete;
+                  <google-maps-place-autocomplete-element
+                    ref={placeAutocompleteRef}
+                    value={
+                      formData.lat && formData.lng
+                        ? `${formData.lat}, ${formData.lng}`
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const [lat, lng] = e.target.value
+                        .split(",")
+                        .map((v) => v.trim());
+                      handleInputChange("lat", lat || "");
+                      handleInputChange("lng", lng || "");
                     }}
-                    onPlaceChanged={handlePlaceSelect}
-                  >
-                    <input
-                      type="text"
-                      onChange={(e) => {
-                        const [lat, lng] = e.target.value
-                          .split(",")
-                          .map((v) => v.trim());
-                        handleInputChange("lat", lat || "");
-                        handleInputChange("lng", lng || "");
-                      }}
-                      placeholder="Enter place address"
-                      className={`w-full pl-10 pr-4 py-3 bg-white border-2 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400 ${
-                        errors.lat || errors.lng
-                          ? "border-red-400 bg-red-50"
-                          : "border-gray-200 hover:border-purple-300"
-                      }`}
-                      aria-label="Place address"
-                    />
-                  </Autocomplete>
+                    placeholder="Enter place address"
+                    className={`w-full pl-10 pr-4 py-3 bg-white border-2 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400 ${
+                      errors.lat || errors.lng
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200 hover:border-purple-300"
+                    }`}
+                    aria-label="Place address"
+                  ></google-maps-place-autocomplete-element>
                   <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 </div>
               ) : (
@@ -460,71 +469,85 @@ const FindNearbyActivities = () => {
                   <p className="text-gray-600">Loading activities...</p>
                 </div>
               ) : nearbyActivities?.length > 0 ? (
-                nearbyActivities.map((activity) => (
-                  <div
-                    key={activity._id}
-                    onClick={() => {
-                      setSelectedActivity(activity);
-                      setCenter({
-                        lat: activity.location.coordinates[1],
-                        lng: activity.location.coordinates[0],
-                      });
-                    }}
-                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
-                      selectedActivity?._id === activity._id
-                        ? "border-purple-500 bg-purple-50 shadow-md"
-                        : "border-gray-100 hover:border-purple-400 hover:bg-purple-50/50"
-                    }`}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
+                nearbyActivities.map((activity) => {
+                  const isParticipant = activity.participantsList.some(
+                    (p) => p.user === user?._id || p.user?._id === user?._id
+                  );
+                  const isCreator = activity.creator._id === user?._id;
+
+                  return (
+                    <div
+                      key={activity._id}
+                      onClick={() => {
                         setSelectedActivity(activity);
                         setCenter({
                           lat: activity.location.coordinates[1],
                           lng: activity.location.coordinates[0],
                         });
-                      }
-                    }}
-                  >
-                    <div className="space-y-3">
-                      <p className="font-semibold text-gray-800 truncate">
-                        {activity.title}
-                      </p>
-                      <div className="flex items-center space-x-2 text-gray-600">
-                        <MapPin className="h-4 w-4 text-red-500" />
-                        <p className="text-sm truncate">
-                          {activity.location.address}
+                      }}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
+                        selectedActivity?._id === activity._id
+                          ? "border-purple-500 bg-purple-50 shadow-md"
+                          : "border-gray-100 hover:border-purple-400 hover:bg-purple-50/50"
+                      }`}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          setSelectedActivity(activity);
+                          setCenter({
+                            lat: activity.location.coordinates[1],
+                            lng: activity.location.coordinates[0],
+                          });
+                        }
+                      }}
+                    >
+                      <div className="space-y-3">
+                        <p className="font-semibold text-gray-800 truncate">
+                          {activity.title}
                         </p>
+                        <div className="flex items-center space-x-2 text-gray-600">
+                          <MapPin className="h-4 w-4 text-red-500" />
+                          <p className="text-sm truncate">
+                            {activity.location.address}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2 text-gray-600">
+                          <Calendar className="h-4 w-4 text-blue-500" />
+                          <p className="text-sm">
+                            {formatDate(activity.startDate)}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2 text-gray-600">
+                          <Users className="h-4 w-4 text-green-500" />
+                          <p className="text-sm">
+                            {activity.participantsList.length}/
+                            {activity.maxParticipants} participants
+                          </p>
+                        </div>
+                        <div className="flex space-x-2">
+                          {(isParticipant || isCreator) && (
+                            <button
+                              disabled
+                              className="flex-1 px-4 py-2 bg-gray-300 text-gray-600 rounded-lg font-medium transition-all duration-300 flex items-center justify-center cursor-not-allowed"
+                              aria-label={`Already joined ${activity.title}`}
+                            >
+                              <Check className="w-4 h-4 mr-2" />
+                              Already Joined
+                            </button>
+                          )}
+                          <Link
+                            to={`/activity/${activity._id}`}
+                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium hover:bg-blue-600 transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                            aria-label={`View details of ${activity.title}`}
+                          >
+                            View Details
+                          </Link>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2 text-gray-600">
-                        <Calendar className="h-4 w-4 text-blue-500" />
-                        <p className="text-sm">
-                          {formatDate(activity.startDate)}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2 text-gray-600">
-                        <Users className="h-4 w-4 text-green-500" />
-                        <p className="text-sm">
-                          {activity.participantsList.length}/
-                          {activity.maxParticipants} participants
-                        </p>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleJoinActivity(activity._id);
-                        }}
-                        className="w-full px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg font-medium hover:bg-green-600 transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
-                        disabled={loading}
-                        aria-label={`Join ${activity.title}`}
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Join Activity
-                      </button>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="text-center py-10">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />

@@ -235,7 +235,9 @@ export const updateActivity = asyncHandler(async (req, res) => {
     activityId,
     { $set: updates },
     { new: true, runValidators: true }
-  ).populate("creator", "fullName");
+  )
+    .populate("creator")
+    .populate("participantsList.user");
 
   if (!updatedActivity) {
     throw new ApiError(500, "Failed to update activity");
@@ -417,9 +419,16 @@ export const joinActivity = asyncHandler(async (req, res) => {
   user.activitiesJoined.push(activity._id);
   await user.save({ validateBeforeSave: false });
 
+  // Re-fetch activity with populated fields to return updated data
+  const updatedActivity = await Activity.findById(activityId)
+    .populate("creator")
+    .populate("participantsList.user");
+
   return res
     .status(200)
-    .json(new ApiResponse(200, activity, "Successfully joined the activity"));
+    .json(
+      new ApiResponse(200, updatedActivity, "Successfully joined the activity")
+    );
 });
 
 export const addUserToActivity = asyncHandler(async (req, res) => {
@@ -630,9 +639,14 @@ export const leaveActivity = asyncHandler(async (req, res) => {
     // Commit the transaction
     await session.commitTransaction();
 
+    const updatedActivity = await Activity.findById(activityId)
+      .populate("creator")
+      .populate("participantsList.user");
     return res
       .status(200)
-      .json(new ApiResponse(200, null, "Successfully left the activity"));
+      .json(
+        new ApiResponse(200, updatedActivity, "Successfully left the activity")
+      );
   } catch (error) {
     // Abort transaction on error
     await session.abortTransaction();
@@ -678,4 +692,35 @@ export const myActivities = asyncHandler(async (req, res) => {
           : "No activities found"
       )
     );
+});
+
+export const getSingleActivity = asyncHandler(async (req, res) => {
+  const { activityId } = req.params;
+  const { firebaseUid } = req.body;
+
+  // Validate inputs
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
+  if (!activityId) {
+    throw new ApiError(400, "Activity ID is required");
+  }
+
+  // Find user by Firebase UID
+  const user = await User.findOne({ firebaseUid }).select("_id");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Find activity by ID and populate all referenced fields
+  const activity = await Activity.findById(activityId)
+    .populate("creator") // Populate all fields of the creator
+    .populate("participantsList.user"); // Populate all fields of users in participantsList
+  if (!activity) {
+    throw new ApiError(404, "Activity not found");
+  }
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, activity, "Activity fetched successfully"));
 });

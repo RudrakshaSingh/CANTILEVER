@@ -226,7 +226,7 @@ function Header() {
                 // Mobile Create Button for authenticated users
                 <div className="px-4 mb-4">
                   <a
-                    href="/create/activity"
+                    href="/activity/create"
                     className="w-full flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg"
                   >
                     <Plus className="w-5 h-5" />

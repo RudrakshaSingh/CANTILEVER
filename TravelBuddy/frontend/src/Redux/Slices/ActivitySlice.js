@@ -13,6 +13,7 @@ const initialState = {
   loading: false,
   error: null,
   singleActivity: null,
+  nearbyActivities: null,
 };
 
 // Create Activity
@@ -646,7 +647,9 @@ export const leaveActivity = createAsyncThunk(
       return { activity: response.data.data }; // Expect backend to return updated activity
     } catch (error) {
       console.error("Leave activity error:", error);
-      const errorMessage = error.response?.data?.message || "Failed to leave activity. Please try again.";
+      const errorMessage =
+        error.response?.data?.message ||
+        "Failed to leave activity. Please try again.";
       const errorStatus = error.response?.status;
 
       if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
@@ -658,15 +661,22 @@ export const leaveActivity = createAsyncThunk(
 
         if (refreshResult.success) {
           dispatch(setAccessToken(refreshResult.newToken));
-          toast.error("Session refreshed. Please try leaving again.", { duration: 4000 });
-          return rejectWithValue({ message: "Session refreshed. Please try leaving again." });
+          toast.error("Session refreshed. Please try leaving again.", {
+            duration: 4000,
+          });
+          return rejectWithValue({
+            message: "Session refreshed. Please try leaving again.",
+          });
         } else {
           toast.error("Session expired. Please login again.");
           dispatch(clearUser());
           setTimeout(() => {
             redirectToLogin();
           }, 1000);
-          return rejectWithValue({ message: refreshResult.message, isAuthError: true });
+          return rejectWithValue({
+            message: refreshResult.message,
+            isAuthError: true,
+          });
         }
       } else {
         toast.error(errorMessage);
@@ -763,6 +773,99 @@ export const getMyActivities = createAsyncThunk(
   }
 );
 
+// Get Single Activity
+export const getSingleActivity = createAsyncThunk(
+  "activity/getSingleActivity",
+  async (
+    { firebaseUid, activityId },
+    { rejectWithValue, getState, dispatch }
+  ) => {
+    try {
+      const { user: currentUser, accessToken } = getState().user;
+
+      if (!currentUser || !accessToken) {
+        const errorMessage = "No authenticated user found.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage, isAuthError: true });
+      }
+
+      if (!firebaseUid || !activityId) {
+        const errorMessage = "Firebase UID and Activity ID are required.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage });
+      }
+
+      try {
+        const response = await axiosInstance.post(
+          `/activity/single-activity/${activityId}`,
+          { firebaseUid },
+          {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          }
+        );
+
+        const activity = response.data.data;
+        toast.success("Activity fetched successfully!", { duration: 3000 });
+        return { activity };
+      } catch (error) {
+        console.error("Get single activity error:", error);
+        const errorMessage = error.response?.data?.message;
+        const errorStatus = error.response?.status;
+
+        if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
+          const refreshResult = await handleTokenRefresh(
+            dispatch,
+            clearUser,
+            setAccessToken
+          );
+
+          if (refreshResult.success) {
+            dispatch(setAccessToken(refreshResult.newToken));
+            toast.error(
+              "Session refreshed. Please try fetching the activity again.",
+              { duration: 4000 }
+            );
+            return rejectWithValue({
+              message:
+                "Session refreshed. Please try fetching the activity again.",
+            });
+          } else {
+            toast.error("Session expired. Please login again.");
+            dispatch(clearUser());
+            setTimeout(() => {
+              redirectToLogin();
+            }, 1000);
+            return rejectWithValue({
+              message: refreshResult.message,
+              isAuthError: true,
+            });
+          }
+        } else {
+          let userFriendlyMessage =
+            errorMessage || "Failed to fetch activity. Please try again.";
+          toast.error(userFriendlyMessage);
+          return rejectWithValue({
+            message: userFriendlyMessage,
+            originalError: errorMessage,
+            status: errorStatus,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Unexpected get single activity error:", error);
+      let errorMessage = "An unexpected error occurred. Please try again.";
+      if (error.name === "NetworkError" || error.message.includes("network")) {
+        errorMessage =
+          "Network error. Please check your connection and try again.";
+      } else if (error.message.includes("timeout")) {
+        errorMessage = "Request timeout. Please try again.";
+      }
+      toast.error(errorMessage);
+      return rejectWithValue({ message: errorMessage });
+    }
+  }
+);
+
 // Activity Slice
 const activitySlice = createSlice({
   name: "activity",
@@ -810,17 +913,7 @@ const activitySlice = createSlice({
       })
       .addCase(updateActivity.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.activity) {
-          state.singleActivity = action.payload.activity;
-          if (state.activities) {
-            const index = state.activities.findIndex(
-              (act) => act._id === action.payload.activity._id
-            );
-            if (index !== -1) {
-              state.activities[index] = action.payload.activity;
-            }
-          }
-        }
+        state.singleActivity = action.payload.activity || null;
       })
       .addCase(updateActivity.rejected, (state, action) => {
         state.loading = false;
@@ -854,17 +947,7 @@ const activitySlice = createSlice({
       })
       .addCase(joinActivity.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.activity) {
-          state.singleActivity = action.payload.activity;
-          if (state.activities) {
-            const index = state.activities.findIndex(
-              (act) => act._id === action.payload.activity._id
-            );
-            if (index !== -1) {
-              state.activities[index] = action.payload.activity;
-            }
-          }
-        }
+        state.singleActivity = action.payload.activity || null;
       })
       .addCase(joinActivity.rejected, (state, action) => {
         state.loading = false;
@@ -954,12 +1037,7 @@ const activitySlice = createSlice({
       })
       .addCase(leaveActivity.fulfilled, (state, action) => {
         state.loading = false;
-        if (action.payload.activity && state.activities) {
-          // Remove the activity from activities if the user is no longer a participant
-          state.activities = state.activities.filter(
-            (act) => act._id !== action.payload.activity._id
-          );
-        }
+        state.singleActivity = action.payload.activity || null;
       })
       .addCase(leaveActivity.rejected, (state, action) => {
         state.loading = false;
@@ -967,6 +1045,24 @@ const activitySlice = createSlice({
           state.error = null;
         } else {
           state.error = action.payload?.message || "Failed to leave activity";
+        }
+      })
+
+      // Get Single Activity
+      .addCase(getSingleActivity.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getSingleActivity.fulfilled, (state, action) => {
+        state.loading = false;
+        state.singleActivity = action.payload.activity || null;
+      })
+      .addCase(getSingleActivity.rejected, (state, action) => {
+        state.loading = false;
+        if (action.payload?.isAuthError === true) {
+          state.error = null;
+        } else {
+          state.error = action.payload?.message || "Failed to fetch activity";
         }
       });
   },

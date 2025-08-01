@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useLocation } from "react-router-dom";
 import Home from "./Pages/Home";
 import UserRegister from "./Pages/Users/UserRegister";
 import UserLogin from "./Pages/Users/UserLogin";
@@ -12,8 +12,15 @@ import DiscoverOtherTravellerNearYou from "./Pages/Users/DiscoverOtherTravellerN
 import FindNearbyActivities from "./Pages/Activity/FindNearbyActivities";
 import SingleActivity from "./Pages/Activity/SingleActivity";
 import Error from "./Pages/Error";
+import { useEffect } from "react";
 
 function App() {
+  const location = useLocation();
+
+  // Scroll to top on route change
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]); // Trigger on pathname change
   return (
     <Routes>
       <Route path="/" element={<HomeLayout />}>
