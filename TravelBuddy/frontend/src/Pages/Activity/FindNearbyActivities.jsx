@@ -1,12 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-hot-toast";
-import {
-  GoogleMap,
-  useJsApiLoader,
-  Marker,
-  Autocomplete,
-} from "@react-google-maps/api";
+import { GoogleMap, Marker, Autocomplete } from "@react-google-maps/api";
 import {
   Calendar,
   MapPin,
@@ -28,19 +23,12 @@ const containerStyle = {
   height: "100%",
 };
 
-const libraries = ["places"];
-
 const FindNearbyActivities = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.user);
   const { nearbyActivities, loading, error } = useSelector(
     (state) => state.activity
   );
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-    libraries,
-  });
 
   const [searchType, setSearchType] = useState("userLocation");
   const [formData, setFormData] = useState({
@@ -220,21 +208,6 @@ const FindNearbyActivities = () => {
       day: "numeric",
     });
   };
-
-  // Loading state
-  if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="bg-white/80 backdrop-blur-md rounded-2xl p-10 shadow-2xl text-center max-w-md">
-          <Loader2 className="h-12 w-12 animate-spin text-purple-600 mx-auto mb-4" />
-          <p className="text-xl font-semibold text-gray-800">Loading Map...</p>
-          <p className="text-sm text-gray-500 mt-2">
-            Please wait while we prepare the activities map
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-100 to-indigo-100 font-sans">

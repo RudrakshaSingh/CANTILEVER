@@ -1,13 +1,13 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { GoogleMap, Marker, useJsApiLoader } from "@react-google-maps/api";
-import { Loader, AlertCircle, RefreshCcw, MapPin } from "lucide-react";
-import { updateUserLocation } from "../Redux/Slices/UserSlice"; // Adjust path as needed
+import { GoogleMap, Marker } from "@react-google-maps/api";
+import { Loader, AlertCircle, RefreshCcw } from "lucide-react";
+import { updateUserLocation } from "../Redux/Slices/UserSlice";
 
 const mapContainerStyle = {
   width: "100%",
-  height: "100%", // Changed from '100vh' to '100%' to fit parent container
+  height: "100%",
 };
 
 const mapOptions = {
@@ -28,15 +28,9 @@ const CurrentLocationGoogleMap = () => {
   const [error, setError] = useState(null);
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
 
-  const { isLoaded, loadError } = useJsApiLoader({
-    id: "google-map-script",
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
-  });
-
   // Function to update location in backend
   const updateLocationInBackend = async (lat, lng) => {
     if (!user) return;
-
     setIsUpdatingLocation(true);
     try {
       await dispatch(updateUserLocation({ lat, lng })).unwrap();
@@ -58,18 +52,16 @@ const CurrentLocationGoogleMap = () => {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         };
-
+        console.log(location);
+        
         setCurrentLocation(location);
         setError(null);
-
-        // Update location in backend if user is logged in and updateBackend is true
         if (updateBackend && user) {
           updateLocationInBackend(location.lat, location.lng);
         }
       },
       (error) => {
         let errorMessage = "Unable to get your location";
-
         switch (error.code) {
           case error.PERMISSION_DENIED:
             errorMessage =
@@ -82,7 +74,6 @@ const CurrentLocationGoogleMap = () => {
             errorMessage = "Location request timed out";
             break;
         }
-
         setError(errorMessage);
       },
       {
@@ -95,43 +86,33 @@ const CurrentLocationGoogleMap = () => {
 
   // Initial location setup
   useEffect(() => {
-    if (isLoaded) {
-      getCurrentLocation(true); // Update backend on initial load
-    }
-  }, [isLoaded]);
-
-  // Optional: Set up periodic location updates (uncomment if needed)
-
-  // useEffect(() => {
-  //   if (!isLoaded || !user) return;
-
-  //   const locationInterval = setInterval(() => {
-  //     getCurrentLocation(true);
-  //   }, 300000); // Update every 300 seconds
-
-  //   return () => clearInterval(locationInterval);
-  // }, [isLoaded, user]);
+    getCurrentLocation(true);
+  }, []);
 
   // Handle manual refresh
   const handleRefreshLocation = () => {
-    getCurrentLocation(true); // Update backend when manually refreshed
+    getCurrentLocation(true);
   };
 
-  if (loadError) {
+  if (error) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
         <div className="text-center p-6">
           <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-700 font-semibold text-lg">
-            Failed to load Google Maps
-          </p>
-          <p className="text-red-600 text-sm mt-2">Please check your API key</p>
+          <p className="text-red-700 font-semibold text-lg">Location Error</p>
+          <p className="text-red-600 text-sm max-w-md mb-4">{error}</p>
+          <button
+            onClick={() => getCurrentLocation(false)}
+            className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
   }
 
-  if (!isLoaded || !currentLocation) {
+  if (!currentLocation) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
         <div className="text-center p-6">
@@ -147,24 +128,6 @@ const CurrentLocationGoogleMap = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-red-50 to-pink-50">
-        <div className="text-center p-6">
-          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-700 font-semibold text-lg">Location Error</p>
-          <p className="text-red-600 text-sm max-w-md mb-4">{error}</p>
-          <button
-            onClick={() => getCurrentLocation(false)} // Don't update backend on error retry
-            className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors duration-200"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="relative w-full h-full">
       <GoogleMap
@@ -174,8 +137,6 @@ const CurrentLocationGoogleMap = () => {
       >
         <Marker position={currentLocation} />
       </GoogleMap>
-
-      {/* Reload Button at Bottom Left */}
       <button
         onClick={handleRefreshLocation}
         disabled={isUpdatingLocation || loading}
@@ -192,10 +153,6 @@ const CurrentLocationGoogleMap = () => {
           }`}
         />
       </button>
-
-      
-
-      {/* User not logged in indicator */}
       {!user && (
         <div className="absolute top-4 right-4 z-10">
           <div className="flex items-center space-x-2 px-3 py-2 rounded-full shadow-md text-sm bg-gray-100 text-gray-600 border border-gray-200">
