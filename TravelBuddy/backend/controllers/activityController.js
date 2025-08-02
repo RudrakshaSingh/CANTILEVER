@@ -28,6 +28,11 @@ export const createActivity = asyncHandler(async (req, res) => {
     throw new ApiError(404, "User not found");
   }
 
+  // Check if requesting user's profile is complete
+  if (!Object.values(user.profileCompletion).every(field => field === true)) {
+    throw new ApiError(400, "Please complete your profile before creating an activity");
+  }
+
   // Validate required fields
   if (!title || !description || !startDate || !time) {
     throw new ApiError(
@@ -130,6 +135,7 @@ export const updateActivity = asyncHandler(async (req, res) => {
   if (!user) {
     throw new ApiError(404, "User not found");
   }
+
 
   // Find activity and verify creator
   const activity = await Activity.findById(activityId);
@@ -367,10 +373,14 @@ export const joinActivity = asyncHandler(async (req, res) => {
 
   // Find user by Firebase UID
   const user = await User.findOne({ firebaseUid }).select(
-    "_id activitiesJoined"
+    "_id activitiesJoined profileCompletion"
   );
   if (!user) {
     throw new ApiError(404, "User not found");
+  }
+   // Check if requesting user's profile is complete
+  if (!Object.values(user.profileCompletion).every(field => field === true)) {
+    throw new ApiError(400, "Please complete your profile before joining an activity");
   }
 
   // Find activity

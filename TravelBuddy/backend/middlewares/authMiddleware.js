@@ -32,13 +32,6 @@ const authMiddleware = async (req, res, next) => {
       throw new ApiError(403, "Please verify your email first");
     }
 
-    // Add user info to request
-    req.user = {
-      uid: decodedToken.uid,
-      email: userRecord.email,
-      emailVerified: userRecord.emailVerified,
-    };
-
     next();
   } catch {
     

@@ -99,9 +99,6 @@ const FindNearbyActivities = () => {
           });
           setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
         },
-        (err) => {
-          toast.error("Failed to get location: " + err.message);
-        }
       );
     } else {
       toast.error("Geolocation is not supported by your browser.");

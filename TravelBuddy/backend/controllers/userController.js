@@ -227,7 +227,9 @@ export const logoutUser = asyncHandler(async (req, res) => {
   user.online = false;
   await user.save();
 
-  res.status(200).json(new ApiResponse(200, null, "User logged out successfully"));
+  res
+    .status(200)
+    .json(new ApiResponse(200, null, "User logged out successfully"));
 });
 
 // Helper function to update profile completion status
@@ -261,6 +263,140 @@ const updateProfileCompletion = (user) => {
   );
 };
 
+export const findNearbyPeople = asyncHandler(async (req, res) => {
+  const { firebaseUid, searchType, lat, lng, radius, name } = req.body;
+
+  // Validate Firebase UID
+  if (!firebaseUid) {
+    throw new ApiError(400, "Firebase UID is required");
+  }
+
+  // Find user by Firebase UID
+  const user = await User.findOne({ firebaseUid }).select("_id currentLocation friends");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Validate searchType
+  if (!["userLocation", "placeLocation", "userName"].includes(searchType)) {
+    throw new ApiError(
+      400,
+      "Invalid search type. Must be 'userLocation', 'placeLocation', or 'userName'"
+    );
+  }
+
+  let users = [];
+
+  if (searchType === "userName") {
+    // Validate name for userName search
+    if (!name || !name.trim()) {
+      throw new ApiError(400, "User name is required for name-based search");
+    }
+
+    // Search by user name (case-insensitive)
+    users = await User.find({
+      fullName: { $regex: name.trim(), $options: "i" },
+      _id: { $ne: user._id }, // Exclude the requesting user
+    }).select(
+      "_id fullName email profilePicture bio languages firebaseUid currentLocation"
+    );
+  } else {
+    // Validate coordinates and radius for location-based searches
+    let searchLat, searchLng;
+
+    if (searchType === "userLocation") {
+      // Use the requesting user's currentLocation
+      if (!user.currentLocation || !user.currentLocation.coordinates || user.currentLocation.coordinates.length !== 2) {
+        throw new ApiError(400, "User's current location is not set");
+      }
+      searchLng = user.currentLocation.coordinates[0]; // longitude
+      searchLat = user.currentLocation.coordinates[1]; // latitude
+    } else {
+      // Use provided lat/lng for placeLocation
+      if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+        throw new ApiError(
+          400,
+          "Valid latitude and longitude are required for place-based search"
+        );
+      }
+      searchLat = parseFloat(lat);
+      searchLng = parseFloat(lng);
+    }
+
+    if (
+      searchLat < -90 ||
+      searchLat > 90 ||
+      searchLng < -180 ||
+      searchLng > 180
+    ) {
+      throw new ApiError(
+        400,
+        "Invalid coordinates: latitude must be -90 to 90, longitude -180 to 180"
+      );
+    }
+
+    if (!radius || isNaN(radius) || parseFloat(radius) <= 0) {
+      throw new ApiError(
+        400,
+        "Valid radius (in meters) is required for location-based search"
+      );
+    }
+    const maxDistance = parseFloat(radius);
+
+    // Log for debugging
+    console.log("findNearbyPeople query:", {
+      searchType,
+      coordinates: [searchLng, searchLat],
+      maxDistance,
+    });
+
+    // Find nearby users
+    users = await User.find({
+      currentLocation: {
+        $nearSphere: {
+          $geometry: {
+            type: "Point",
+            coordinates: [searchLng, searchLat], // [lng, lat]
+          },
+          $maxDistance: maxDistance, // In meters
+        },
+      },
+      _id: { $ne: user._id }, // Exclude the requesting user
+    }).select(
+      "_id fullName email profilePicture bio languages firebaseUid currentLocation"
+    );
+  }
+
+  // Add isFriend property to each user
+  users = users.map((u) => ({
+    ...u.toObject(),
+    isFriend: user.friends.includes(u._id),
+  }));
+
+  // Log response for debugging
+  console.log("findNearbyPeople response:", {
+    userCount: users.length,
+    users: users.map((u) => ({
+      _id: u._id,
+      fullName: u.fullName,
+      currentLocation: u.currentLocation,
+      isFriend: u.isFriend,
+    })),
+  });
+
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(
+        200,
+        users,
+        users.length > 0
+          ? "Users found successfully"
+          : "No users found"
+      )
+    );
+});
+
 export const updateUserLocation = asyncHandler(async (req, res) => {
   const { firebaseUid, lat, lng } = req.body;
 
@@ -268,13 +404,19 @@ export const updateUserLocation = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Firebase UID is required");
   }
 
+  if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+    throw new ApiError(400, "Valid latitude and longitude are required");
+  }
+
   const user = await User.findOne({ firebaseUid });
   if (!user) {
     throw new ApiError(404, "User not found");
   }
 
-  user.currentLocation.lat = lat;
-  user.currentLocation.lng = lng;
+  user.currentLocation = {
+    type: "Point",
+    coordinates: [parseFloat(lng), parseFloat(lat)], // [lng, lat]
+  };
   await user.save();
 
   res.status(200).json(new ApiResponse(200, user, "User location updated successfully"));

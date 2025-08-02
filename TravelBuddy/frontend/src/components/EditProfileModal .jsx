@@ -304,8 +304,8 @@ const EditProfileModal = ({ isOpen, onClose, user }) => {
     }
 
     // Validate bio length
-    if (formData.bio && formData.bio.length > 500) {
-      newErrors.bio = "Bio must be 500 characters or less";
+    if (formData.bio && formData.bio.length > 500 || formData.bio.trim()==0) {
+      newErrors.bio = "Bio must be 500 characters or less and cannot be empty";
     }
 
     // Validate mobile (more comprehensive pattern)

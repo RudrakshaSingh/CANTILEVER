@@ -67,11 +67,14 @@ const userSchema = new mongoose.Schema(
       },
     ],
     currentLocation: {
-      lat: {
-        type: Number,
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
       },
-      lng: {
-        type: Number,
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        default: [0, 0],
       },
     },
 
@@ -126,11 +129,20 @@ const userSchema = new mongoose.Schema(
         ref: "Activity",
       },
     ],
+    friends: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,
   }
 );
+
+// Ensure 2dsphere index on currentLocation
+userSchema.index({ currentLocation: "2dsphere" });
 
 const User = mongoose.model("User", userSchema);
 

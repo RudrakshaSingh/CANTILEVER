@@ -22,6 +22,7 @@ const initialState = {
   loading: false,
   error: null,
   accessToken: null,
+  nearbyUsers: null,
 };
 
 // Async Thunks for Firebase Auth Operations
@@ -540,7 +541,7 @@ export const updateProfile = createAsyncThunk(
               isAuthError: firebaseError.code === "auth/user-not-found",
             });
           }
-        } catch  {
+        } catch {
           const errorMessage =
             "Failed to update Firebase profile. Please try again.";
           toast.error(errorMessage);
@@ -610,7 +611,6 @@ export const updateProfile = createAsyncThunk(
 
         return { user: backendData };
       } catch (error) {
-
         const errorMessage = error.response?.data?.message;
         const errorStatus = error.response?.status;
 
@@ -650,7 +650,6 @@ export const updateProfile = createAsyncThunk(
         }
       }
     } catch (error) {
-
       let errorMessage = "An unexpected error occurred. Please try again.";
 
       if (error.name === "NetworkError" || error.message.includes("network")) {
@@ -706,7 +705,7 @@ export const updateUserLocation = createAsyncThunk(
       // Call backend API to update location
       try {
         console.log("k");
-        
+
         const backendResponse = await axiosInstance.post(
           "/users/update-location",
           {
@@ -729,7 +728,6 @@ export const updateUserLocation = createAsyncThunk(
 
         return { user: backendData };
       } catch (error) {
-
         const errorMessage = error.response?.data?.message;
         const errorStatus = error.response?.status;
 
@@ -769,7 +767,6 @@ export const updateUserLocation = createAsyncThunk(
         }
       }
     } catch (error) {
-
       let errorMessage = "An unexpected error occurred. Please try again.";
 
       if (error.name === "NetworkError" || error.message.includes("network")) {
@@ -781,6 +778,80 @@ export const updateUserLocation = createAsyncThunk(
 
       toast.error(errorMessage);
       return rejectWithValue({ message: errorMessage });
+    }
+  }
+);
+
+// Find Nearby People
+export const findNearbyPeople = createAsyncThunk(
+  "user/findNearbyPeople",
+  async (
+    { searchType, lat, lng, radius, name },
+    { rejectWithValue, getState, dispatch }
+  ) => {
+    try {
+      const { user: currentUser, accessToken } = getState().user;
+      if (!currentUser || !accessToken) {
+        const errorMessage = "No authenticated user found.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage, isAuthError: true });
+      }
+
+      const response = await axiosInstance.post(
+        "/users/find-nearby",
+        {
+          firebaseUid: currentUser.firebaseUid,
+          searchType,
+          lat,
+          lng,
+          radius,
+          name,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      return response.data.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+      const errorStatus = error.response?.status;
+
+      // Use global token refresh handler
+      if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
+        const refreshResult = await handleTokenRefresh(
+          dispatch,
+          clearUser,
+          setAccessToken
+        );
+
+        if (refreshResult.success) {
+          toast.error(
+            "Session expired. Please try updating your profile again."
+          );
+          return rejectWithValue({
+            message: "Session expired. Please try updating your profile again.",
+          });
+        } else {
+          return rejectWithValue({
+            message: refreshResult.message,
+            isAuthError: true,
+          });
+        }
+      } else {
+        // Handle other HTTP errors
+        let userFriendlyMessage =
+          "Failed to find nearby people. Please try again.";
+
+        toast.error(userFriendlyMessage);
+        return rejectWithValue({
+          message: userFriendlyMessage,
+          originalError: errorMessage,
+          status: errorStatus,
+        });
+      }
     }
   }
 );
@@ -999,6 +1070,20 @@ const userSlice = createSlice({
         } else {
           state.error = action.payload?.message || "Failed to update location";
         }
+      })
+
+      // Find Nearby People
+      .addCase(findNearbyPeople.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(findNearbyPeople.fulfilled, (state, action) => {
+        state.loading = false;
+        state.nearbyUsers = action.payload;
+      })
+      .addCase(findNearbyPeople.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
 
       // Delete User Account

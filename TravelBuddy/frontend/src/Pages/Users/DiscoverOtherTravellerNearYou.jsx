@@ -1,320 +1,561 @@
-import React, { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "react-hot-toast";
 import { GoogleMap, Marker } from "@react-google-maps/api";
-import { Autocomplete } from "@react-google-maps/api";
 import {
   MapPin,
   Users,
+  AlertCircle,
   Search,
-  Filter,
   Navigation,
   Loader2,
-  Star,
+  UserPlus,
+  User,
 } from "lucide-react";
-import toast from "react-hot-toast";
-
-// Dummy travelers data including current user
-const travelers = [
-  {
-    id: 1,
-    name: "Amit",
-    location: { lat: 28.6139, lng: 77.209 },
-    city: "Delhi",
-    avatar: "👨‍💼",
-  },
-  {
-    id: 2,
-    name: "Raj",
-    location: { lat: 19.076, lng: 72.8777 },
-    city: "Mumbai",
-    avatar: "👨‍🎨",
-  },
-  {
-    id: 3,
-    name: "Priya",
-    location: { lat: 12.9716, lng: 77.5946 },
-    city: "Bangalore",
-    avatar: "👩‍💻",
-  },
-  {
-    id: 4,
-    name: "Sara",
-    location: { lat: 22.5726, lng: 88.3639 },
-    city: "Kolkata",
-    avatar: "👩‍🎓",
-  },
-  {
-    id: 5,
-    name: "John",
-    location: { lat: 18.5204, lng: 73.8567 },
-    city: "Pune",
-    avatar: "👨‍🚀",
-  },
-  {
-    id: 6,
-    name: "Emily",
-    location: { lat: 13.0827, lng: 80.2707 },
-    city: "Chennai",
-    avatar: "👩‍🎤",
-  },
-  {
-    id: 7,
-    name: "Michael",
-    location: { lat: 28.7041, lng: 77.1025 },
-    city: "Gurugram",
-    avatar: "👨‍🏫",
-  },
-];
-
-// Current user (dummy)
-const currentUser = {
-  id: 0,
-  name: "You",
-  location: { lat: 28.4595, lng: 77.0266 }, // Gurgaon
-  city: "Gurgaon",
-  avatar: "🌟",
-};
+import { Link, useLocation } from "react-router-dom";
+import { findNearbyPeople, clearError } from "../../Redux/Slices/UserSlice";
 
 const containerStyle = {
   width: "100%",
   height: "100%",
 };
 
-function DiscoverOtherTravellerNearYou() {
-  const [searchType, setSearchType] = useState("username"); // username, location, radius
-  const [searchQuery, setSearchQuery] = useState("");
-  const [radius, setRadius] = useState("");
-  const [selectedLocation, setSelectedLocation] = useState(null);
-  const [selectedTraveler, setSelectedTraveler] = useState(null);
-  const [showList, setShowList] = useState(false);
-  const [center, setCenter] = useState(currentUser.location);
-  const autocompleteRef = useRef(null);
+const DiscoverOtherTravellerNearYou = () => {
+  const dispatch = useDispatch();
+  const { user, nearbyUsers, loading, error } = useSelector(
+    (state) => state.user
+  );
+  const location = useLocation();
 
-  // Haversine formula to calculate distance between two coordinates (in km)
-  const haversineDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371; // Earth's radius in km
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  // Filter travelers based on search type
-  const filteredTravelers = travelers.filter((traveler) => {
-    if (searchType === "username") {
-      return (
-        traveler.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        traveler.city.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    } else if (searchType === "location" && selectedLocation) {
-      const distance = haversineDistance(
-        selectedLocation.lat,
-        selectedLocation.lng,
-        traveler.location.lat,
-        traveler.location.lng
-      );
-      return distance <= 100; // Arbitrary 100km limit for location search
-    } else if (searchType === "radius" && radius) {
-      const distance = haversineDistance(
-        currentUser.location.lat,
-        currentUser.location.lng,
-        traveler.location.lat,
-        traveler.location.lng
-      );
-      return distance <= parseFloat(radius);
-    }
-    return true;
+  const [searchType, setSearchType] = useState("userLocation");
+  const [formData, setFormData] = useState({
+    lat: "",
+    lng: "",
+    radius: "", // In kilometers
+    name: "",
   });
+  const [errors, setErrors] = useState({});
+  const [fetchAttempted, setFetchAttempted] = useState(false);
+  const [center, setCenter] = useState({ lat: 28.6139, lng: 77.209 }); // Default: Delhi
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showList, setShowList] = useState(false);
+  const placeAutocompleteRef = useRef(null);
 
-  // Handle location selection from Autocomplete
-  const handlePlaceSelect = () => {
-    if (autocompleteRef.current) {
-      const place = autocompleteRef.current.getPlace();
-      if (place.geometry) {
-        setSelectedLocation({
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-          address: place.formatted_address,
-        });
-        setCenter({
-          lat: place.geometry.location.lat(),
-          lng: place.geometry.location.lng(),
-        });
-        setSearchQuery(place.formatted_address);
-      } else {
-        toast.error("Please select a valid address from the suggestions");
-      }
+  // Scroll to top on component mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  // Clear Redux error when form data changes
+  useEffect(() => {
+    if (
+      error &&
+      (formData.lat || formData.lng || formData.radius || formData.name)
+    ) {
+      dispatch(clearError());
+    }
+  }, [formData, error, dispatch]);
+
+  // Handle Google Maps PlaceAutocompleteElement
+  useEffect(() => {
+    if (placeAutocompleteRef.current) {
+      placeAutocompleteRef.current.addEventListener("gmp-placeselect", () => {
+        const place = placeAutocompleteRef.current.place;
+        if (place && place.geometry) {
+          const latitude = place.geometry.location.lat();
+          const longitude = place.geometry.location.lng();
+          setFormData((prev) => ({
+            ...prev,
+            lat: latitude.toString(),
+            lng: longitude.toString(),
+          }));
+          setCenter({ lat: latitude, lng: longitude });
+          setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
+        } else {
+          toast.error("Please select a valid address from the suggestions.");
+        }
+      });
+    }
+  }, [placeAutocompleteRef]);
+
+  // Get user location for userLocation search
+  const handleGetUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFormData((prev) => ({
+            ...prev,
+            lat: position.coords.latitude.toString(),
+            lng: position.coords.longitude.toString(),
+            radius: formData.radius || "5", // Default to 5 km
+          }));
+          setCenter({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
+        },
+      );
+    } else {
+      toast.error("Geolocation is not supported by your browser.");
     }
   };
 
   // Reset search when switching search type
   const handleSearchTypeChange = (type) => {
     setSearchType(type);
-    setSearchQuery("");
-    setRadius("");
-    setSelectedLocation(null);
-    setCenter(currentUser.location);
+    setFormData({ lat: "", lng: "", radius: "", name: "" });
+    setErrors({});
+    setSelectedUser(null);
+    setCenter({ lat: 28.6139, lng: 77.209 });
+    setShowList(true);
+  };
+
+  // Validate form inputs
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (searchType !== "userName") {
+      if (!formData.lat || isNaN(formData.lat)) {
+        newErrors.lat = "Valid latitude is required";
+      } else if (
+        parseFloat(formData.lat) < -90 ||
+        parseFloat(formData.lat) > 90
+      ) {
+        newErrors.lat = "Latitude must be between -90 and 90";
+      }
+
+      if (!formData.lng || isNaN(formData.lng)) {
+        newErrors.lng = "Valid longitude is required";
+      } else if (
+        parseFloat(formData.lng) < -180 ||
+        parseFloat(formData.lng) > 180
+      ) {
+        newErrors.lng = "Longitude must be between -180 and 180";
+      }
+
+      if (
+        !formData.radius ||
+        isNaN(formData.radius) ||
+        parseFloat(formData.radius) <= 0
+      ) {
+        newErrors.radius = "Radius must be greater than 0 km";
+      } else if (parseFloat(formData.radius) > 20000) {
+        newErrors.radius = "Radius cannot exceed 20,000 km";
+      }
+    } else {
+      if (!formData.name.trim()) {
+        newErrors.name = "User name is required";
+      } else if (formData.name.trim().length < 3) {
+        newErrors.name = "User name must be at least 3 characters";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  // Handle input changes
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+    if (errors[field]) {
+      setErrors((prev) => ({
+        ...prev,
+        [field]: "",
+      }));
+    }
+  };
+
+  // Handle search submission
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    setFetchAttempted(true);
+
+    if (!user) {
+      toast.error("You must be logged in to search for travelers");
+      return;
+    }
+
+    if (!validateForm()) {
+      toast.error("Please fix the errors before searching");
+      return;
+    }
+
+    const payload = {
+      firebaseUid: user.firebaseUid,
+      searchType,
+      ...(searchType !== "userName" && {
+        lat: parseFloat(formData.lat),
+        lng: parseFloat(formData.lng),
+        radius: parseFloat(formData.radius) * 1000, // Convert km to meters
+      }),
+      ...(searchType === "userName" && { name: formData.name.trim() }),
+    };
+
+    // Log payload for debugging
+    console.log("findNearbyPeople payload:", payload);
+
+    try {
+      await dispatch(findNearbyPeople(payload)).unwrap();
+      setSelectedUser(null);
+      setShowList(true);
+    } catch (err) {
+      toast.error(err.message || "Failed to search travelers");
+    }
+  };
+
+  // Handle Add Friend
+  const handleAddFriend = async (friendFirebaseUid) => {
+    console.log(
+      "handleAddFriend called with friendFirebaseUid:",
+      friendFirebaseUid
+    );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-100 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-purple-100 via-blue-100 to-indigo-100 font-sans">
       {/* Header */}
-      <div className="bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 text-white rounded-3xl p-8 mb-8 shadow-2xl sticky top-0 z-20 max-w-6xl mx-auto">
-        <div className="flex items-center justify-between space-x-4">
+      <div className="bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 text-white rounded-2xl p-6 sm:p-8 mb-8 shadow-xl sticky top-0 z-20 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="bg-white/20 backdrop-blur-sm rounded-2xl p-4">
-              <Users className="w-8 h-8" />
+            <div className="bg-white/10 backdrop-blur-md rounded-full p-3">
+              <Users className="w-7 h-7" />
             </div>
             <div>
-              <h1 className="text-4xl font-bold">Discover Nearby Travelers</h1>
-              <p className="text-purple-100 text-lg mt-2">
-                Find other travelers near you ({filteredTravelers.length} found)
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">
+                Discover Nearby Travelers
+              </h1>
+              <p className="text-indigo-100 text-base sm:text-lg mt-1">
+                Find travelers near you ({nearbyUsers?.length || 0} found)
               </p>
             </div>
           </div>
           <button
             onClick={() => setShowList(!showList)}
-            className="sm:hidden bg-purple-600 text-white p-2 rounded-xl hover:bg-purple-700 transition-colors"
+            className="sm:hidden bg-indigo-500 text-white p-2 rounded-full hover:bg-indigo-600 transition-all duration-200"
+            aria-label={showList ? "Hide traveler list" : "Show traveler list"}
           >
-            <Filter className="h-5 w-5" />
+            <Users className="h-5 w-5" />
           </button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Search Bar */}
-        <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 shadow-lg border border-gray-200/50 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 shadow-lg border border-gray-100 mb-8">
+          <form
+            onSubmit={handleSearch}
+            className="flex flex-col sm:flex-row gap-4"
+          >
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => handleSearchTypeChange("username")}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-                  searchType === "username"
-                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                type="button"
+                onClick={() => handleSearchTypeChange("userLocation")}
+                className={`px-4 py-2 rounded-lg font-medium text-sm sm:text-base transition-all duration-300 ${
+                  searchType === "userLocation"
+                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md"
+                    : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                 }`}
+                aria-label="Search by my location"
               >
-                Username
+                My Location
               </button>
               <button
-                onClick={() => handleSearchTypeChange("location")}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-                  searchType === "location"
-                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                type="button"
+                onClick={() => handleSearchTypeChange("placeLocation")}
+                className={`px-4 py-2 rounded-lg font-medium text-sm sm:text-base transition-all duration-300 ${
+                  searchType === "placeLocation"
+                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md"
+                    : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                 }`}
+                aria-label="Search by place"
               >
-                Location
+                Place
               </button>
               <button
-                onClick={() => handleSearchTypeChange("radius")}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-                  searchType === "radius"
-                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                type="button"
+                onClick={() => handleSearchTypeChange("userName")}
+                className={`px-4 py-2 rounded-lg font-medium text-sm sm:text-base transition-all duration-300 ${
+                  searchType === "userName"
+                    ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md"
+                    : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                 }`}
+                aria-label="Search by user name"
               >
-                Radius
+                User Name
               </button>
             </div>
             <div className="flex-1 relative">
-              {searchType === "location" ? (
-                <Autocomplete
-                  onLoad={(autocomplete) => {
-                    autocompleteRef.current = autocomplete;
-                  }}
-                  onPlaceChanged={handlePlaceSelect}
-                >
+              {searchType === "userName" ? (
+                <div className="relative">
                   <input
                     type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Enter city or address..."
-                    className="w-full pl-10 pr-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    placeholder="Enter user name (e.g., John Doe)"
+                    className={`w-full pl-10 pr-4 py-3 bg-white border-2 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400 ${
+                      errors.name
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200 hover:border-purple-300"
+                    }`}
+                    aria-label="User name"
                   />
-                </Autocomplete>
-              ) : searchType === "radius" ? (
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                </div>
+              ) : searchType === "placeLocation" ? (
+                <div className="relative">
+                  <google-maps-place-autocomplete-element
+                    ref={placeAutocompleteRef}
+                    value={
+                      formData.lat && formData.lng
+                        ? `${formData.lat}, ${formData.lng}`
+                        : ""
+                    }
+                    onChange={(e) => {
+                      const [lat, lng] = e.target.value
+                        .split(",")
+                        .map((v) => v.trim());
+                      handleInputChange("lat", lat || "");
+                      handleInputChange("lng", lng || "");
+                    }}
+                    placeholder="Enter place address"
+                    className={`w-full pl-10 pr-4 py-3 bg-white border-2 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400 ${
+                      errors.lat || errors.lng
+                        ? "border-red-400 bg-red-50"
+                        : "border-gray-200 hover:border-purple-300"
+                    }`}
+                    aria-label="Place address"
+                  ></google-maps-place-autocomplete-element>
+                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                </div>
+              ) : (
+                <div className="flex items-center space-x-3">
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      value={formData.lat}
+                      onChange={(e) => handleInputChange("lat", e.target.value)}
+                      placeholder="Latitude (e.g., 28.6139)"
+                      className={`w-full pl-10 pr-4 py-3 bg-white border-2 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400 ${
+                        errors.lat
+                          ? "border-red-400 bg-red-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                      step="any"
+                      aria-label="Latitude"
+                    />
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  </div>
+                  <div className="relative flex-1">
+                    <input
+                      type="number"
+                      value={formData.lng}
+                      onChange={(e) => handleInputChange("lng", e.target.value)}
+                      placeholder="Longitude (e.g., 77.2090)"
+                      className={`w-full pl-10 pr-4 py-3 bg-white border-2 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400 ${
+                        errors.lng
+                          ? "border-red-400 bg-red-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                      step="any"
+                      aria-label="Longitude"
+                    />
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGetUserLocation}
+                    className="px-4 py-3 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium hover:bg-blue-600 transition-all duration-300 flex items-center"
+                    aria-label="Use current location"
+                  >
+                    <Navigation className="h-5 w-5 mr-2" />
+                    Current Location
+                  </button>
+                </div>
+              )}
+            </div>
+            {searchType !== "userName" && (
+              <div className="relative w-40">
                 <input
                   type="number"
-                  value={radius}
-                  onChange={(e) => setRadius(e.target.value)}
-                  placeholder="Enter radius in km (e.g., 10)"
-                  min="1"
-                  max="1000"
-                  className="w-full pl-10 pr-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300"
+                  value={formData.radius}
+                  onChange={(e) => handleInputChange("radius", e.target.value)}
+                  placeholder="Radius (km)"
+                  min="0.1"
+                  step="0.1"
+                  className={`w-full pl-10 pr-4 py-3 bg-white border-2 rounded-lg focus:ring-2 focus:ring-purple-300 focus:border-purple-500 transition-all duration-300 text-gray-800 placeholder-gray-400 ${
+                    errors.radius
+                      ? "border-red-400 bg-red-50"
+                      : "border-gray-200 hover:border-purple-300"
+                  }`}
+                  aria-label="Radius in kilometers"
                 />
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              </div>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-medium hover:bg-purple-700 transform hover:scale-105 transition-all duration-300 flex items-center disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
+              aria-label="Search travelers"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  Searching...
+                </>
               ) : (
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by username or city..."
-                  className="w-full pl-10 pr-4 py-3 bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all duration-300"
-                />
+                <>
+                  <Search className="h-5 w-5 mr-2" />
+                  Search
+                </>
               )}
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            </button>
+          </form>
+          {Object.values(errors).some((error) => error) && (
+            <div className="mt-4 space-y-2">
+              {Object.entries(errors).map(
+                ([key, value]) =>
+                  value && (
+                    <p
+                      key={key}
+                      className="text-red-600 text-sm flex items-center"
+                    >
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      {value}
+                    </p>
+                  )
+              )}
             </div>
-          </div>
+          )}
         </div>
 
-        <div className="flex flex-col sm:flex-row min-h-[calc(100vh-200px)]">
+        {/* Error Display */}
+        {error && fetchAttempted && (
+          <div className="bg-red-50/80 backdrop-blur-sm border-l-4 border-red-500 p-4 rounded-lg mb-8 shadow-md">
+            <div className="flex items-center">
+              <AlertCircle className="h-6 w-6 text-red-500" />
+              <p className="ml-3 text-base text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col lg:flex-row gap-6 min-h-[500px]">
           {/* Travelers List */}
           <div
             className={`${
               showList ? "block" : "hidden"
-            } sm:block sm:w-80 bg-white/70 backdrop-blur-sm rounded-2xl shadow-lg border border-gray-200/50 overflow-y-auto max-h-[500px]`}
+            } lg:block lg:w-96 bg-white/90 backdrop-blur-md rounded-2xl shadow-lg border border-gray-100 overflow-y-auto max-h-[600px]`}
           >
-            <div className="p-4 space-y-3">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center mb-4">
-                <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-xl p-3 mr-4">
+            <div className="p-6 space-y-4">
+              <h2 className="text-2xl font-semibold text-gray-800 flex items-center mb-4">
+                <div className="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full p-2 mr-3">
                   <Users className="w-6 h-6 text-white" />
                 </div>
-                Active Travelers
+                Nearby Travelers
               </h2>
-              {filteredTravelers.length > 0 ? (
-                filteredTravelers.map((traveler) => (
+              {loading && fetchAttempted ? (
+                <div className="text-center py-10">
+                  <Loader2 className="h-10 w-10 animate-spin text-purple-600 mx-auto mb-4" />
+                  <p className="text-gray-600">Loading travelers...</p>
+                </div>
+              ) : nearbyUsers?.length > 0 ? (
+                nearbyUsers.map((traveler) => (
                   <div
-                    key={traveler.id}
+                    key={traveler._id}
                     onClick={() => {
-                      setSelectedTraveler(traveler);
-                      setCenter(traveler.location);
+                      setSelectedUser(traveler);
+                      setCenter({
+                        lat:
+                          traveler.currentLocation?.coordinates?.[1] || 28.6139,
+                        lng:
+                          traveler.currentLocation?.coordinates?.[0] || 77.209,
+                      });
                     }}
-                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                      selectedTraveler?.id === traveler.id
-                        ? "border-purple-500 bg-purple-50/50 shadow-md"
-                        : "border-gray-100 hover:border-purple-300 hover:bg-purple-25"
+                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all duration-300 ${
+                      selectedUser?._id === traveler._id
+                        ? "border-purple-500 bg-purple-50 shadow-md"
+                        : "border-gray-100 hover:border-purple-400 hover:bg-purple-50/50"
                     }`}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        setSelectedUser(traveler);
+                        setCenter({
+                          lat:
+                            traveler.currentLocation?.coordinates?.[1] ||
+                            28.6139,
+                          lng:
+                            traveler.currentLocation?.coordinates?.[0] ||
+                            77.209,
+                        });
+                      }
+                    }}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="text-2xl">{traveler.avatar}</div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-gray-900 truncate">
-                          {traveler.name}
-                        </p>
-                        <div className="flex items-center space-x-1 mt-1">
-                          <MapPin className="h-3 w-3 text-purple-600" />
-                          <p className="text-sm text-gray-600 truncate">
-                            {traveler.city}
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <img
+                          src={traveler?.profilePicture}
+                          alt={traveler.fullName || "Traveler"}
+                          className="w-10 h-10 rounded-full object-cover"
+                        />
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800 truncate">
+                            {traveler.fullName}
                           </p>
+                          <div className="flex items-center space-x-2 text-gray-600">
+                            <MapPin className="h-4 w-4 text-red-500" />
+                            <p className="text-sm truncate">
+                              {traveler.currentLocation?.coordinates
+                                ? `${traveler.currentLocation.coordinates[1].toFixed(
+                                    4
+                                  )}, ${traveler.currentLocation.coordinates[0].toFixed(
+                                    4
+                                  )}`
+                                : "Location not set"}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex-shrink-0">
-                        <div className="w-3 h-3 bg-green-500 rounded-full shadow-sm"></div>
+                      <div className="flex space-x-2">
+                        {traveler.isFriend ? (
+                          <Link
+                            to={`/profile/${traveler.firebaseUid}`}
+                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium hover:bg-blue-600 transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                            aria-label={`View profile of ${traveler.fullName}`}
+                          >
+                            <User className="w-4 h-4 mr-2" />
+                            View Profile
+                          </Link>
+                        ) : (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent list item click
+                              handleAddFriend(traveler.firebaseUid);
+                            }}
+                            className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg font-medium hover:bg-green-600 transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                            aria-label={`Add ${traveler.fullName} as friend`}
+                          >
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Add Friend
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))
               ) : (
-                <div className="text-center py-8">
-                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">No travelers found</p>
-                  <p className="text-sm text-gray-400 mt-1">
-                    Try adjusting your search
+                <div className="text-center py-10">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-lg font-medium text-gray-600">
+                    No travelers found
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Try adjusting your search criteria
                   </p>
                 </div>
               )}
@@ -322,66 +563,99 @@ function DiscoverOtherTravellerNearYou() {
           </div>
 
           {/* Map Container */}
-          <div className="flex-1 p-3 sm:p-4">
-            <div className="bg-white/70 backdrop-blur-sm rounded-2xl shadow-xl overflow-hidden h-[500px]">
+          <div className="flex-1">
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg overflow-hidden h-[600px]">
               <div className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Navigation className="h-5 w-5" />
-                    <span className="font-medium">Live Traveler Locations</span>
+                    <span className="font-medium text-lg">
+                      Traveler Locations
+                    </span>
                   </div>
-                  <div className="flex items-center space-x-2 text-purple-100">
+                  <div className="flex items-center space-x-2 text-indigo-100">
                     <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-sm">Real-time</span>
+                    <span className="text-sm">Real-time Updates</span>
                   </div>
                 </div>
               </div>
-              <div className="h-[452px]">
+              <div className="h-[548px]">
                 <GoogleMap
                   mapContainerStyle={containerStyle}
                   center={center}
-                  zoom={searchType === "radius" && radius ? 10 : 5}
+                  zoom={searchType === "userName" ? 5 : 10}
                   options={{
                     zoomControl: true,
                     streetViewControl: false,
                     mapTypeControl: false,
                     fullscreenControl: true,
+                    styles: [
+                      {
+                        featureType: "poi",
+                        elementType: "labels",
+                        stylers: [{ visibility: "simplified" }],
+                      },
+                    ],
                   }}
                 >
-                  {/* Current User Marker */}
-                  <Marker
-                    position={currentUser.location}
-                    title={`${currentUser.name} - ${currentUser.city}`}
-                    icon={{
-                      path: window.google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
-                      fillColor: "#FFD700",
-                      fillOpacity: 1,
-                      strokeWeight: 1,
-                      strokeColor: "#000000",
-                      scale: 6,
-                    }}
-                    onClick={() => {
-                      setSelectedTraveler(currentUser);
-                      setCenter(currentUser.location);
-                    }}
-                  />
-                  {/* Other Travelers Markers */}
-                  {filteredTravelers.map((traveler) => (
+                  {user?.currentLocation?.coordinates && (
                     <Marker
-                      key={traveler.id}
-                      position={traveler.location}
-                      title={`${traveler.name} - ${traveler.city}`}
+                      position={{
+                        lat: user.currentLocation.coordinates[1],
+                        lng: user.currentLocation.coordinates[0],
+                      }}
+                      title={`${user.fullName} (You)`}
                       icon={{
-                        path: window.google.maps.SymbolPath.CIRCLE,
-                        fillColor: "#9333EA",
+                        path: window.google.maps.SymbolPath
+                          .BACKWARD_CLOSED_ARROW,
+                        fillColor: "#FFD700",
                         fillOpacity: 1,
                         strokeWeight: 1,
-                        strokeColor: "#FFFFFF",
-                        scale: 8,
+                        strokeColor: "#000000",
+                        scale: 6,
                       }}
                       onClick={() => {
-                        setSelectedTraveler(traveler);
-                        setCenter(traveler.location);
+                        setSelectedUser(user);
+                        setCenter({
+                          lat: user.currentLocation.coordinates[1],
+                          lng: user.currentLocation.coordinates[0],
+                        });
+                        setShowList(true);
+                      }}
+                    />
+                  )}
+                  {nearbyUsers?.map((traveler) => (
+                    <Marker
+                      key={traveler._id}
+                      position={{
+                        lat:
+                          traveler.currentLocation?.coordinates?.[1] || 28.6139,
+                        lng:
+                          traveler.currentLocation?.coordinates?.[0] || 77.209,
+                      }}
+                      title={traveler.fullName}
+                      icon={{
+                        path: window.google.maps.SymbolPath.CIRCLE,
+                        fillColor:
+                          selectedUser?._id === traveler._id
+                            ? "#4B0082"
+                            : "#FF4400",
+                        fillOpacity: 1,
+                        strokeWeight: 2,
+                        strokeColor: "#FFFFFF",
+                        scale: 10,
+                      }}
+                      onClick={() => {
+                        setSelectedUser(traveler);
+                        setCenter({
+                          lat:
+                            traveler.currentLocation?.coordinates?.[1] ||
+                            28.6139,
+                          lng:
+                            traveler.currentLocation?.coordinates?.[0] ||
+                            77.209,
+                        });
+                        setShowList(true);
                       }}
                     />
                   ))}
@@ -393,6 +667,6 @@ function DiscoverOtherTravellerNearYou() {
       </div>
     </div>
   );
-}
+};
 
 export default DiscoverOtherTravellerNearYou;
