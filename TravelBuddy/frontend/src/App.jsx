@@ -13,6 +13,7 @@ import FindNearbyActivities from "./Pages/Activity/FindNearbyActivities";
 import SingleActivity from "./Pages/Activity/SingleActivity";
 import Error from "./Pages/Error";
 import { useEffect } from "react";
+import FriendProfile from "./Pages/Users/FriendProfile";
 
 function App() {
   const location = useLocation();
@@ -31,6 +32,7 @@ function App() {
 
         <Route element={<ProtectedRoute allowedRoles={["user", "admin"]} />}>
           <Route path="/user/profile" element={<UserProfile />} />
+          <Route path="/friend-profile/:friendId" element={<FriendProfile />} />
           <Route path="/activity/create" element={<CreateActivity />} />
           <Route path="/activity/my" element={<MyActivities />} />
           <Route path="/discover" element={<DiscoverOtherTravellerNearYou />} />

@@ -9,11 +9,14 @@ import {
   Search,
   Navigation,
   Loader2,
-  UserPlus,
   User,
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import { findNearbyPeople, clearError } from "../../Redux/Slices/UserSlice";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  findNearbyPeople,
+  clearError,
+  getFriendProfile,
+} from "../../Redux/Slices/UserSlice";
 
 const containerStyle = {
   width: "100%",
@@ -22,6 +25,7 @@ const containerStyle = {
 
 const DiscoverOtherTravellerNearYou = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user, nearbyUsers, loading, error } = useSelector(
     (state) => state.user
   );
@@ -81,21 +85,19 @@ const DiscoverOtherTravellerNearYou = () => {
   // Get user location for userLocation search
   const handleGetUserLocation = () => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setFormData((prev) => ({
-            ...prev,
-            lat: position.coords.latitude.toString(),
-            lng: position.coords.longitude.toString(),
-            radius: formData.radius || "5", // Default to 5 km
-          }));
-          setCenter({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-          setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
-        },
-      );
+      navigator.geolocation.getCurrentPosition((position) => {
+        setFormData((prev) => ({
+          ...prev,
+          lat: position.coords.latitude.toString(),
+          lng: position.coords.longitude.toString(),
+          radius: formData.radius || "5", // Default to 5 km
+        }));
+        setCenter({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setErrors((prev) => ({ ...prev, lat: "", lng: "" }));
+      });
     } else {
       toast.error("Geolocation is not supported by your browser.");
     }
@@ -195,9 +197,6 @@ const DiscoverOtherTravellerNearYou = () => {
       ...(searchType === "userName" && { name: formData.name.trim() }),
     };
 
-    // Log payload for debugging
-    console.log("findNearbyPeople payload:", payload);
-
     try {
       await dispatch(findNearbyPeople(payload)).unwrap();
       setSelectedUser(null);
@@ -205,14 +204,6 @@ const DiscoverOtherTravellerNearYou = () => {
     } catch (err) {
       toast.error(err.message || "Failed to search travelers");
     }
-  };
-
-  // Handle Add Friend
-  const handleAddFriend = async (friendFirebaseUid) => {
-    console.log(
-      "handleAddFriend called with friendFirebaseUid:",
-      friendFirebaseUid
-    );
   };
 
   return (
@@ -522,28 +513,29 @@ const DiscoverOtherTravellerNearYou = () => {
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        {traveler.isFriend ? (
-                          <Link
-                            to={`/profile/${traveler.firebaseUid}`}
-                            className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium hover:bg-blue-600 transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
-                            aria-label={`View profile of ${traveler.fullName}`}
-                          >
-                            <User className="w-4 h-4 mr-2" />
-                            View Profile
-                          </Link>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent list item click
-                              handleAddFriend(traveler.firebaseUid);
-                            }}
-                            className="flex-1 px-4 py-2 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg font-medium hover:bg-green-600 transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
-                            aria-label={`Add ${traveler.fullName} as friend`}
-                          >
-                            <UserPlus className="w-4 h-4 mr-2" />
-                            Add Friend
-                          </button>
-                        )}
+                        <Link
+                          to={`/friend-profile/${traveler._id}`}
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            try {
+                              await dispatch(
+                                getFriendProfile({
+                                  friendId: traveler._id,
+                                })
+                              ).unwrap();
+                              navigate(`/friend-profile/${traveler._id}`);
+                            } catch (err) {
+                              toast.error(
+                                err.message || "Failed to fetch friend profile"
+                              );
+                            }
+                          }}
+                          className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-lg font-medium hover:bg-blue-600 transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
+                          aria-label={`View profile of ${traveler.fullName}`}
+                        >
+                          <User className="w-4 h-4 mr-2" />
+                          View Profile
+                        </Link>
                       </div>
                     </div>
                   </div>

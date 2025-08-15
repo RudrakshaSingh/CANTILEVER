@@ -7,7 +7,8 @@ import {
   deleteUser,
   logoutUser,
   updateUserLocation,
-  findNearbyPeople
+  findNearbyPeople,
+  getFriendProfile
 } from "../controllers/userController.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import upload from "../middlewares/multermiddleware.js";
@@ -27,6 +28,7 @@ router.post("/delete", deleteUser);
 router.post("/logout", authMiddleware,logoutUser);
 router.post("/update-location", authMiddleware, updateUserLocation);
 router.post("/find-nearby", authMiddleware, findNearbyPeople);
+router.post("/friend-profile", authMiddleware, getFriendProfile);
 
 
 export default router;

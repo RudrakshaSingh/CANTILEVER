@@ -421,3 +421,34 @@ export const updateUserLocation = asyncHandler(async (req, res) => {
 
   res.status(200).json(new ApiResponse(200, user, "User location updated successfully"));
 });
+
+export const getFriendProfile = asyncHandler(async (req, res) => {
+  const { firebaseUid, friendId } = req.body;
+
+  // Validate input
+  if (!firebaseUid || !friendId) {
+    throw new ApiError(400, "Both firebaseUid and friendId are required");
+  }
+
+  // Fetch requesting user to check friends list
+  const user = await User.findOne({ firebaseUid }).select("_id friends");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Fetch friend's profile, deselecting sensitive fields
+  const friend = await User.findById(friendId).select(
+    "-firebaseUid -email -mobile -socketId -profileCompletion -friends -createdAt -updatedAt"
+  );
+  if (!friend) {
+    throw new ApiError(404, "Friend not found");
+  }
+
+  // Add isFriend property
+  const friendData = {
+    ...friend.toObject(),
+    isFriend: user.friends.includes(friend._id),
+  };
+
+  res.status(200).json(new ApiResponse(200, friendData, "Friend profile retrieved successfully"));
+});

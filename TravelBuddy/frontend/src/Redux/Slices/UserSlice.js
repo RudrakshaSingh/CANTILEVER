@@ -23,9 +23,8 @@ const initialState = {
   error: null,
   accessToken: null,
   nearbyUsers: null,
+  friendProfile: null,
 };
-
-// Async Thunks for Firebase Auth Operations
 
 // Register with Email and Password
 export const registerUser = createAsyncThunk(
@@ -856,6 +855,71 @@ export const findNearbyPeople = createAsyncThunk(
   }
 );
 
+// Get Friend Profile
+export const getFriendProfile = createAsyncThunk(
+  "user/getFriendProfile",
+  async ({ friendId }, { rejectWithValue, getState, dispatch }) => {
+    try {
+      const { user: currentUser, accessToken } = getState().user;
+      if (!currentUser || !accessToken) {
+        const errorMessage = "No authenticated user found.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage, isAuthError: true });
+      }
+
+      const response = await axiosInstance.post(
+        "/users/friend-profile",
+        {
+          firebaseUid: currentUser.firebaseUid,
+          friendId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      return response.data.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+      const errorStatus = error.response?.status;
+
+      if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
+        const refreshResult = await handleTokenRefresh(
+          dispatch,
+          clearUser,
+          setAccessToken
+        );
+
+        if (refreshResult.success) {
+          toast.error(
+            "Session expired. Please try fetching friend profile again."
+          );
+          return rejectWithValue({
+            message:
+              "Session expired. Please try fetching friend profile again.",
+          });
+        } else {
+          return rejectWithValue({
+            message: refreshResult.message,
+            isAuthError: true,
+          });
+        }
+      } else {
+        let userFriendlyMessage =
+          "Failed to fetch friend profile. Please try again.";
+        toast.error(userFriendlyMessage);
+        return rejectWithValue({
+          message: userFriendlyMessage,
+          originalError: errorMessage,
+          status: errorStatus,
+        });
+      }
+    }
+  }
+);
+
 // User Slice
 const userSlice = createSlice({
   name: "user",
@@ -1108,6 +1172,28 @@ const userSlice = createSlice({
           state.error = null;
         } else {
           state.error = action.payload?.message || "Failed to delete account";
+        }
+      })
+
+      // Get Friend Profile
+      .addCase(getFriendProfile.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(getFriendProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.friendProfile = action.payload;
+      })
+      .addCase(getFriendProfile.rejected, (state, action) => {
+        state.loading = false;
+        if (action.payload?.isAuthError === true) {
+          state.user = null;
+          state.accessToken = null;
+          state.friendProfile = null;
+          state.error = null;
+        } else {
+          state.error =
+            action.payload?.message || "Failed to fetch friend profile";
         }
       });
   },
