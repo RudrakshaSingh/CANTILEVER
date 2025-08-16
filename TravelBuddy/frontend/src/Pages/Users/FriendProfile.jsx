@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useParams, useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast";
 import {
   User,
   Globe,
   MapPin,
-  Calendar,
   Star,
   MessageCircle,
   Languages,
@@ -15,11 +13,10 @@ import {
   Twitter,
   Instagram,
   Linkedin,
-  Users,
   Plane,
   Shield,
 } from "lucide-react";
-import { getFriendProfile } from "../../Redux/Slices/UserSlice";
+import { getFriendProfile, addFriend, removeFriend, refreshUserData } from "../../Redux/Slices/UserSlice";
 
 function FriendProfile() {
   const dispatch = useDispatch();
@@ -39,6 +36,22 @@ function FriendProfile() {
 
     dispatch(getFriendProfile({ friendId }));
   }, [dispatch, friendId, user, navigate]);
+
+  // Handle Add Friend
+  const handleAddFriend = async () => {
+    await dispatch(addFriend({ friendId })).unwrap();
+    await dispatch(refreshUserData()).unwrap(); // Refresh user data to update friends array
+    await dispatch(getFriendProfile({ friendId })); // Refetch friend profile to update isFriend
+
+  };
+
+  // Handle Remove Friend
+  const handleRemoveFriend = async () => {
+    await dispatch(removeFriend({ friendId })).unwrap();
+    await dispatch(refreshUserData()).unwrap(); // Refresh user data to update friends array
+    await dispatch(getFriendProfile({ friendId })); // Refetch friend profile to update isFriend
+
+  };
 
   if (loading) {
     return (
@@ -161,6 +174,7 @@ function FriendProfile() {
                   </div>
                   <div className="flex space-x-4 mt-4 md:mt-0">
                     <button
+                      onClick={friendProfile.isFriend ? handleRemoveFriend : handleAddFriend}
                       className={`px-6 py-3 rounded-xl font-semibold transition-all duration-200 transform hover:-translate-y-0.5 ${
                         friendProfile.isFriend
                           ? "bg-red-600 text-white hover:bg-red-700"
@@ -253,29 +267,24 @@ function FriendProfile() {
                         <div className="flex items-center p-3 bg-gray-50 rounded-lg">
                           <Heart className="w-5 h-5 text-red-600 mr-3" />
                           <div>
-                            <div className="text-sm text-gray-600">
-                              Birthday
-                            </div>
+                            <div className="text-sm text-gray-600">Birthday</div>
                             <div className="font-medium">
                               {formatDate(friendProfile.dateOfBirth)}
                             </div>
                           </div>
                         </div>
                       )}
-                      {friendProfile.gender &&
-                        friendProfile.gender !== "prefer-not-to-say" && (
-                          <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                            <User className="w-5 h-5 text-pink-600 mr-3" />
-                            <div>
-                              <div className="text-sm text-gray-600">
-                                Gender
-                              </div>
-                              <div className="font-medium capitalize">
-                                {friendProfile.gender}
-                              </div>
+                      {friendProfile.gender && friendProfile.gender !== "prefer-not-to-say" && (
+                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <User className="w-5 h-5 text-pink-600 mr-3" />
+                          <div>
+                            <div className="text-sm text-gray-600">Gender</div>
+                            <div className="font-medium capitalize">
+                              {friendProfile.gender}
                             </div>
                           </div>
-                        )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -286,8 +295,7 @@ function FriendProfile() {
                     <Languages className="w-5 h-5 mr-2 text-green-600" />
                     Languages
                   </h3>
-                  {friendProfile.languages &&
-                  friendProfile.languages.length > 0 ? (
+                  {friendProfile.languages && friendProfile.languages.length > 0 ? (
                     <div className="space-y-3">
                       {friendProfile.languages.map((lang, index) => (
                         <div
@@ -317,9 +325,7 @@ function FriendProfile() {
 
                 {/* Social Links Section */}
                 {friendProfile.socialLinks &&
-                Object.values(friendProfile.socialLinks).some(
-                  (link) => link
-                ) ? (
+                Object.values(friendProfile.socialLinks).some((link) => link) ? (
                   <div className="bg-white rounded-2xl shadow-lg p-6">
                     <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
                       <Globe className="w-5 h-5 mr-2 text-blue-600" />

@@ -920,6 +920,130 @@ export const getFriendProfile = createAsyncThunk(
   }
 );
 
+// Add Friend
+export const addFriend = createAsyncThunk(
+  "user/addFriend",
+  async ({ friendId }, { rejectWithValue, getState, dispatch }) => {
+    try {
+      const { user: currentUser, accessToken } = getState().user;
+      if (!currentUser || !accessToken) {
+        const errorMessage = "No authenticated user found.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage, isAuthError: true });
+      }
+
+      const response = await axiosInstance.post(
+        "/users/add-friend",
+        {
+          firebaseUid: currentUser.firebaseUid,
+          friendId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      toast.success("Friend added successfully");
+      return response.data.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+      const errorStatus = error.response?.status;
+
+      if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
+        const refreshResult = await handleTokenRefresh(
+          dispatch,
+          clearUser,
+          setAccessToken
+        );
+
+        if (refreshResult.success) {
+          toast.error("Session expired. Please try adding friend again.");
+          return rejectWithValue({
+            message: "Session expired. Please try adding friend again.",
+          });
+        } else {
+          return rejectWithValue({
+            message: refreshResult.message,
+            isAuthError: true,
+          });
+        }
+      } else {
+        let userFriendlyMessage = "Failed to add friend. Please try again.";
+        toast.error(errorMessage || userFriendlyMessage);
+        return rejectWithValue({
+          message: userFriendlyMessage,
+          originalError: errorMessage,
+          status: errorStatus,
+        });
+      }
+    }
+  }
+);
+
+// Remove Friend
+export const removeFriend = createAsyncThunk(
+  "user/removeFriend",
+  async ({ friendId }, { rejectWithValue, getState, dispatch }) => {
+    try {
+      const { user: currentUser, accessToken } = getState().user;
+      if (!currentUser || !accessToken) {
+        const errorMessage = "No authenticated user found.";
+        toast.error(errorMessage);
+        return rejectWithValue({ message: errorMessage, isAuthError: true });
+      }
+
+      const response = await axiosInstance.post(
+        "/users/remove-friend",
+        {
+          firebaseUid: currentUser.firebaseUid,
+          friendId,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      toast.success("Friend removed successfully");
+      return response.data.data;
+    } catch (error) {
+      const errorMessage = error.response?.data?.message;
+      const errorStatus = error.response?.status;
+
+      if (errorStatus === 401 || isTokenAuthError(errorMessage)) {
+        const refreshResult = await handleTokenRefresh(
+          dispatch,
+          clearUser,
+          setAccessToken
+        );
+
+        if (refreshResult.success) {
+          toast.error("Session expired. Please try removing friend again.");
+          return rejectWithValue({
+            message: "Session expired. Please try removing friend again.",
+          });
+        } else {
+          return rejectWithValue({
+            message: refreshResult.message,
+            isAuthError: true,
+          });
+        }
+      } else {
+        let userFriendlyMessage = "Failed to remove friend. Please try again.";
+        toast.error(errorMessage || userFriendlyMessage);
+        return rejectWithValue({
+          message: userFriendlyMessage,
+          originalError: errorMessage,
+          status: errorStatus,
+        });
+      }
+    }
+  }
+);
+
 // User Slice
 const userSlice = createSlice({
   name: "user",
@@ -1195,7 +1319,44 @@ const userSlice = createSlice({
           state.error =
             action.payload?.message || "Failed to fetch friend profile";
         }
-      });
+      })
+
+      // Add Friend
+    .addCase(addFriend.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    })
+    .addCase(addFriend.fulfilled, (state, ) => {
+      state.loading = false;
+    })
+    .addCase(addFriend.rejected, (state, action) => {
+      state.loading = false;
+      if (action.payload?.isAuthError) {
+        state.user = null;
+        state.accessToken = null;
+        state.error = null;
+      } else {
+        state.error = action.payload.message;
+      }
+    })
+    // Remove Friend
+    .addCase(removeFriend.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    })
+    .addCase(removeFriend.fulfilled, (state) => {
+      state.loading = false;
+    })
+    .addCase(removeFriend.rejected, (state, action) => {
+      state.loading = false;
+      if (action.payload?.isAuthError) {
+        state.user = null;
+        state.accessToken = null;
+        state.error = null;
+      } else {
+        state.error = action.payload.message;
+      }
+    });
   },
 });
 

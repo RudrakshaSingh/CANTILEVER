@@ -452,3 +452,68 @@ export const getFriendProfile = asyncHandler(async (req, res) => {
 
   res.status(200).json(new ApiResponse(200, friendData, "Friend profile retrieved successfully"));
 });
+
+export const addFriend = asyncHandler(async (req, res) => {
+  const { firebaseUid, friendId } = req.body;
+
+  if (!firebaseUid || !friendId) {
+    throw new ApiError(400, "Both firebaseUid and friendId are required");
+  }
+
+  const user = await User.findOne({ firebaseUid }).select("_id friends profileCompletion");
+  const friend = await User.findById(friendId).select("_id friends profileCompletion");
+
+  if (!user || !friend) {
+    throw new ApiError(404, "User or friend not found");
+  }
+
+  if (user._id.toString() === friendId) {
+    throw new ApiError(400, "Cannot add yourself as a friend");
+  }
+
+  if (!Object.values(user.profileCompletion).every(field => field === true) ||
+      !Object.values(friend.profileCompletion).every(field => field === true)) {
+    throw new ApiError(400, "Both users must have complete profiles to add as friends");
+  }
+
+  if (user.friends.includes(friend._id) || friend.friends.includes(user._id)) {
+    throw new ApiError(400, "Users are already friends");
+  }
+
+  user.friends.push(friend._id);
+  friend.friends.push(user._id);
+
+  await Promise.all([user.save(), friend.save()]);
+
+  res.status(200).json(new ApiResponse(200, null, "Friend added successfully"));
+});
+
+export const removeFriend = asyncHandler(async (req, res) => {
+  const { firebaseUid, friendId } = req.body;
+
+  if (!firebaseUid || !friendId) {
+    throw new ApiError(400, "Both firebaseUid and friendId are required");
+  }
+
+  const user = await User.findOne({ firebaseUid }).select("_id friends");
+  const friend = await User.findById(friendId).select("_id friends");
+
+  if (!user || !friend) {
+    throw new ApiError(404, "User or friend not found");
+  }
+
+  if (user._id.toString() === friendId) {
+    throw new ApiError(400, "Cannot remove yourself as a friend");
+  }
+
+  if (!user.friends.includes(friend._id) || !friend.friends.includes(user._id)) {
+    throw new ApiError(400, "Users are not friends");
+  }
+
+  user.friends = user.friends.filter(id => id.toString() !== friend._id.toString());
+  friend.friends = friend.friends.filter(id => id.toString() !== user._id.toString());
+
+  await Promise.all([user.save(), friend.save()]);
+
+  res.status(200).json(new ApiResponse(200, null, "Friend removed successfully"));
+});
