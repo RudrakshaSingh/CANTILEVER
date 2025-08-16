@@ -73,7 +73,7 @@ function FriendProfile() {
             onClick={() => navigate("/discover")}
             className="mt-4 bg-purple-600 text-white px-6 py-3 rounded-xl"
           >
-            Back to Discover
+            Go to Discover
           </button>
         </div>
       </div>
@@ -163,7 +163,7 @@ function FriendProfile() {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
                   <div>
                     <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                      {friendProfile.fullName || "Anonymous Friend"}
+                      {friendProfile.fullName || "Anonymous Friend"}'s <span className="text-pink-600">Profile</span>
                     </h1>
                     <div className="flex items-center text-gray-600">
                       <Shield className="w-4 h-4 mr-2" />

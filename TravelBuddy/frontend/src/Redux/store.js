@@ -8,7 +8,7 @@ import activitySliceReducer from "./Slices/ActivitySlice";
 const persistConfig = {
   key: 'root',
   storage,
-  blacklist: ['nearbyUsers'], // Exclude nearbyUsers from persistence
+  blacklist: ['nearbyUsers', 'friendProfile'], // Exclude nearbyUsers from persistence
 };
 
 const persistedUserReducer = persistReducer(persistConfig, userSliceReducer);

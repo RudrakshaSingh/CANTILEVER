@@ -72,7 +72,10 @@ export const getProfile = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Firebase UID is required");
   }
 
-  const user = await User.findOne({ firebaseUid });
+  const user = await User.findOne({ firebaseUid }).populate({
+  path: 'friends',
+  select: '_id fullName profilePicture gender',
+})
   if (!user) {
     throw new ApiError(404, "User not found");
   }
@@ -272,7 +275,9 @@ export const findNearbyPeople = asyncHandler(async (req, res) => {
   }
 
   // Find user by Firebase UID
-  const user = await User.findOne({ firebaseUid }).select("_id currentLocation friends");
+  const user = await User.findOne({ firebaseUid }).select(
+    "_id currentLocation friends"
+  );
   if (!user) {
     throw new ApiError(404, "User not found");
   }
@@ -306,7 +311,11 @@ export const findNearbyPeople = asyncHandler(async (req, res) => {
 
     if (searchType === "userLocation") {
       // Use the requesting user's currentLocation
-      if (!user.currentLocation || !user.currentLocation.coordinates || user.currentLocation.coordinates.length !== 2) {
+      if (
+        !user.currentLocation ||
+        !user.currentLocation.coordinates ||
+        user.currentLocation.coordinates.length !== 2
+      ) {
         throw new ApiError(400, "User's current location is not set");
       }
       searchLng = user.currentLocation.coordinates[0]; // longitude
@@ -390,9 +399,7 @@ export const findNearbyPeople = asyncHandler(async (req, res) => {
       new ApiResponse(
         200,
         users,
-        users.length > 0
-          ? "Users found successfully"
-          : "No users found"
+        users.length > 0 ? "Users found successfully" : "No users found"
       )
     );
 });
@@ -419,7 +426,9 @@ export const updateUserLocation = asyncHandler(async (req, res) => {
   };
   await user.save();
 
-  res.status(200).json(new ApiResponse(200, user, "User location updated successfully"));
+  res
+    .status(200)
+    .json(new ApiResponse(200, user, "User location updated successfully"));
 });
 
 export const getFriendProfile = asyncHandler(async (req, res) => {
@@ -450,7 +459,11 @@ export const getFriendProfile = asyncHandler(async (req, res) => {
     isFriend: user.friends.includes(friend._id),
   };
 
-  res.status(200).json(new ApiResponse(200, friendData, "Friend profile retrieved successfully"));
+  res
+    .status(200)
+    .json(
+      new ApiResponse(200, friendData, "Friend profile retrieved successfully")
+    );
 });
 
 export const addFriend = asyncHandler(async (req, res) => {
@@ -460,8 +473,12 @@ export const addFriend = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Both firebaseUid and friendId are required");
   }
 
-  const user = await User.findOne({ firebaseUid }).select("_id friends profileCompletion");
-  const friend = await User.findById(friendId).select("_id friends profileCompletion");
+  const user = await User.findOne({ firebaseUid }).select(
+    "_id friends profileCompletion"
+  );
+  const friend = await User.findById(friendId).select(
+    "_id friends profileCompletion"
+  );
 
   if (!user || !friend) {
     throw new ApiError(404, "User or friend not found");
@@ -469,11 +486,6 @@ export const addFriend = asyncHandler(async (req, res) => {
 
   if (user._id.toString() === friendId) {
     throw new ApiError(400, "Cannot add yourself as a friend");
-  }
-
-  if (!Object.values(user.profileCompletion).every(field => field === true) ||
-      !Object.values(friend.profileCompletion).every(field => field === true)) {
-    throw new ApiError(400, "Both users must have complete profiles to add as friends");
   }
 
   if (user.friends.includes(friend._id) || friend.friends.includes(user._id)) {
@@ -506,14 +518,23 @@ export const removeFriend = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Cannot remove yourself as a friend");
   }
 
-  if (!user.friends.includes(friend._id) || !friend.friends.includes(user._id)) {
+  if (
+    !user.friends.includes(friend._id) ||
+    !friend.friends.includes(user._id)
+  ) {
     throw new ApiError(400, "Users are not friends");
   }
 
-  user.friends = user.friends.filter(id => id.toString() !== friend._id.toString());
-  friend.friends = friend.friends.filter(id => id.toString() !== user._id.toString());
+  user.friends = user.friends.filter(
+    (id) => id.toString() !== friend._id.toString()
+  );
+  friend.friends = friend.friends.filter(
+    (id) => id.toString() !== user._id.toString()
+  );
 
   await Promise.all([user.save(), friend.save()]);
 
-  res.status(200).json(new ApiResponse(200, null, "Friend removed successfully"));
+  res
+    .status(200)
+    .json(new ApiResponse(200, null, "Friend removed successfully"));
 });

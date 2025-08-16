@@ -23,10 +23,14 @@ import {
   Instagram,
   Linkedin,
 } from "lucide-react";
-import { deleteUserAccount } from "../../Redux/Slices/UserSlice";
+import {
+  deleteUserAccount,
+  refreshUserData,
+} from "../../Redux/Slices/UserSlice";
 import DeleteAccountModal from "../../components/DeleteAccountModal";
 import EditProfileModal from "../../components/EditProfileModal ";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 function UserProfile() {
   // Get user from Redux store
@@ -38,9 +42,15 @@ function UserProfile() {
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
 
   const location = useLocation();
-const searchParams = new URLSearchParams(location.search);
-const defaultTab = searchParams.get("tab") || "overview";
-const [activeTab, setActiveTab] = useState(defaultTab);
+  const searchParams = new URLSearchParams(location.search);
+  const defaultTab = searchParams.get("tab") || "overview";
+  const [activeTab, setActiveTab] = useState(defaultTab);
+
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    dispatch(refreshUserData());
+  }, [dispatch]);
 
   const handleDeleteAccount = () => {
     setIsDeleteModalOpen(true);
@@ -144,18 +154,18 @@ const [activeTab, setActiveTab] = useState(defaultTab);
     if (user.profileCompletion && user.profileCompletion[field] !== undefined) {
       return user.profileCompletion[field];
     }
-    
+
     // Fallback logic for when profileCompletion is not available
     switch (field) {
-      case 'basicInfo':
+      case "basicInfo":
         return !!(user.fullName && user.email);
-      case 'profilePicture':
-        return !!(user.profilePicture);
-      case 'bio':
+      case "profilePicture":
+        return !!user.profilePicture;
+      case "bio":
         return hasValidBio(user.bio);
-      case 'phoneNumber':
+      case "phoneNumber":
         return isValidMobile(user.mobile);
-      case 'languages':
+      case "languages":
         return !!(user.languages && user.languages.length > 0);
       default:
         return false;
@@ -164,8 +174,16 @@ const [activeTab, setActiveTab] = useState(defaultTab);
 
   // Calculate overall completion percentage
   const calculateCompletionPercentage = () => {
-    const fields = ['basicInfo', 'profilePicture', 'bio', 'phoneNumber', 'languages'];
-    const completedFields = fields.filter(field => getCompletionStatus(field));
+    const fields = [
+      "basicInfo",
+      "profilePicture",
+      "bio",
+      "phoneNumber",
+      "languages",
+    ];
+    const completedFields = fields.filter((field) =>
+      getCompletionStatus(field)
+    );
     return Math.round((completedFields.length / fields.length) * 100);
   };
 
@@ -219,7 +237,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       </span>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={handleEditProfile}
                     className="mt-4 md:mt-0 bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 flex items-center"
                   >
@@ -307,7 +325,10 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       <div className="text-center py-6">
                         <User className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                         <p className="text-gray-500 mb-2">No bio added yet</p>
-                        <button onClick={handleEditProfile} className="text-purple-600 hover:text-purple-700 font-medium text-sm">
+                        <button
+                          onClick={handleEditProfile}
+                          className="text-purple-600 hover:text-purple-700 font-medium text-sm"
+                        >
                           + Add Bio
                         </button>
                       </div>
@@ -365,7 +386,10 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                             <div className="text-sm text-orange-600">
                               Mobile Number
                             </div>
-                            <button onClick={handleEditProfile} className="text-orange-700 hover:text-orange-800 font-medium text-sm">
+                            <button
+                              onClick={handleEditProfile}
+                              className="text-orange-700 hover:text-orange-800 font-medium text-sm"
+                            >
                               + Add Phone Number
                             </button>
                           </div>
@@ -407,7 +431,10 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       <p className="text-gray-500 mb-4">
                         No languages added yet
                       </p>
-                      <button onClick={handleEditProfile} className="text-purple-600 hover:text-purple-700 font-medium">
+                      <button
+                        onClick={handleEditProfile}
+                        className="text-purple-600 hover:text-purple-700 font-medium"
+                      >
                         + Add Languages
                       </button>
                     </div>
@@ -427,7 +454,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                         ([platform, url]) => {
                           if (!url) return null;
                           const IconComponent = getSocialIcon(platform);
-                          
+
                           return (
                             <a
                               key={platform}
@@ -457,12 +484,61 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       <p className="text-gray-500 mb-4">
                         No social links added yet
                       </p>
-                      <button onClick={handleEditProfile} className="text-purple-600 hover:text-purple-700 font-medium">
+                      <button
+                        onClick={handleEditProfile}
+                        className="text-purple-600 hover:text-purple-700 font-medium"
+                      >
                         + Add Social Links
                       </button>
                     </div>
                   </div>
                 )}
+
+                {/* Friends Section */}
+<div className="bg-white rounded-2xl shadow-lg p-6">
+  <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+    <Users className="w-5 h-5 mr-2 text-blue-600" />
+    Friends
+  </h3>
+  {user.friends && user.friends.length > 0 ? (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {user.friends.map((friend) => (
+        <div
+          key={friend._id}
+          className="flex items-center p-3 border border-gray-200 rounded-lg hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer"
+          onClick={() => navigate(`/friend-profile/${friend._id}`)}
+        >
+          <img
+            src={friend.profilePicture}
+            alt={friend.fullName || "Friend"}
+            className="w-12 h-12 rounded-full object-cover mr-3"
+          />
+          <div>
+            <span className="font-medium text-gray-800">
+              {friend.fullName || "Anonymous Friend"}
+            </span>
+            {friend.gender && friend.gender !== "prefer-not-to-say" && (
+              <div className="text-sm text-gray-600 capitalize">
+                {friend.gender}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="text-center py-8">
+      <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+      <p className="text-gray-500 mb-4">No friends added yet</p>
+      <button
+        onClick={() => navigate("/discover")}
+        className="text-purple-600 hover:text-purple-700 font-medium"
+      >
+        Find Friends
+      </button>
+    </div>
+  )}
+</div>
 
                 {/* Recent Activity */}
                 <div className="bg-white rounded-2xl shadow-lg p-6">
@@ -526,7 +602,7 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                       Add your future destinations to connect with travelers
                       going to the same places
                     </p>
-                    <button  className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200">
+                    <button className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-200">
                       + Add Destination
                     </button>
                   </div>
@@ -602,10 +678,10 @@ const [activeTab, setActiveTab] = useState(defaultTab);
                   {calculateCompletionPercentage()}%
                 </span>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="w-full bg-gray-200 rounded-full h-2 mb-4">
-                <div 
+                <div
                   className="bg-gradient-to-r from-purple-600 to-indigo-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${calculateCompletionPercentage()}%` }}
                 ></div>
@@ -614,42 +690,62 @@ const [activeTab, setActiveTab] = useState(defaultTab);
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Basic Info</span>
-                  <span className={`font-semibold ${
-                    getCompletionStatus('basicInfo') ? "text-green-600" : "text-orange-600"
-                  }`}>
-                    {getCompletionStatus('basicInfo') ? "✓" : "○"}
+                  <span
+                    className={`font-semibold ${
+                      getCompletionStatus("basicInfo")
+                        ? "text-green-600"
+                        : "text-orange-600"
+                    }`}
+                  >
+                    {getCompletionStatus("basicInfo") ? "✓" : "○"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Profile Picture</span>
-                  <span className={`font-semibold ${
-                    getCompletionStatus('profilePicture') ? "text-green-600" : "text-orange-600"
-                  }`}>
-                    {getCompletionStatus('profilePicture') ? "✓" : "○"}
+                  <span
+                    className={`font-semibold ${
+                      getCompletionStatus("profilePicture")
+                        ? "text-green-600"
+                        : "text-orange-600"
+                    }`}
+                  >
+                    {getCompletionStatus("profilePicture") ? "✓" : "○"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Bio</span>
-                  <span className={`font-semibold ${
-                    getCompletionStatus('bio') ? "text-green-600" : "text-orange-600"
-                  }`}>
-                    {getCompletionStatus('bio') ? "✓" : "○"}
+                  <span
+                    className={`font-semibold ${
+                      getCompletionStatus("bio")
+                        ? "text-green-600"
+                        : "text-orange-600"
+                    }`}
+                  >
+                    {getCompletionStatus("bio") ? "✓" : "○"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Phone Number</span>
-                  <span className={`font-semibold ${
-                    getCompletionStatus('phoneNumber') ? "text-green-600" : "text-orange-600"
-                  }`}>
-                    {getCompletionStatus('phoneNumber') ? "✓" : "○"}
+                  <span
+                    className={`font-semibold ${
+                      getCompletionStatus("phoneNumber")
+                        ? "text-green-600"
+                        : "text-orange-600"
+                    }`}
+                  >
+                    {getCompletionStatus("phoneNumber") ? "✓" : "○"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">Languages</span>
-                  <span className={`font-semibold ${
-                    getCompletionStatus('languages') ? "text-green-600" : "text-orange-600"
-                  }`}>
-                    {getCompletionStatus('languages') ? "✓" : "○"}
+                  <span
+                    className={`font-semibold ${
+                      getCompletionStatus("languages")
+                        ? "text-green-600"
+                        : "text-orange-600"
+                    }`}
+                  >
+                    {getCompletionStatus("languages") ? "✓" : "○"}
                   </span>
                 </div>
               </div>
